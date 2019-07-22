@@ -3,7 +3,7 @@ $license = $argv[0];
 $baseUrl = $argv[1];
 $params  = $argv[2];
 
-sendPostViaSocket($base, $params);
+sendPostViaSocket($baseUrl, $params);
 
 function sendPostViaSocket($url, $params)
 {

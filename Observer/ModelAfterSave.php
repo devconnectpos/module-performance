@@ -4,6 +4,8 @@ namespace SM\Performance\Observer;
 
 use Magento\Catalog\Model\Category;
 use Magento\Catalog\Model\Product;
+use Magento\Catalog\Model\Product\Type;
+use Magento\ConfigurableProduct\Model\ResourceModel\Product\Type\Configurable;
 use Magento\Customer\Model\Customer;
 use Magento\Customer\Model\Group;
 use Magento\Framework\Cache\FrontendInterface;
@@ -55,30 +57,39 @@ class ModelAfterSave implements ObserverInterface
             "special_price",
             "price"
         ];
+    /**
+     * Catalog product type configurable
+     *
+     * @var Configurable
+     */
+    protected $catalogProductTypeConfigurable;
 
     public static $SUPPORT_CHECK_REALTIME_API = false;
 
     /**
      * ModelAfterSave constructor.
      *
-     * @param \SM\Performance\Helper\RealtimeManager     $realtimeManager
+     * @param \SM\Performance\Helper\RealtimeManager $realtimeManager
      * @param \Magento\Store\Model\StoreManagerInterface $storeManager
      * @param \Magento\Framework\Cache\FrontendInterface $cache
-     * @param \SM\XRetail\Helper\Data                    $helperData
-     * @param \Magento\Framework\ObjectManagerInterface  $objectManager
+     * @param \SM\XRetail\Helper\Data $helperData
+     * @param \Magento\Framework\ObjectManagerInterface $objectManager
+     * @param Configurable $catalogProductTypeConfigurable
      */
     public function __construct(
         RealtimeManager $realtimeManager,
         StoreManagerInterface $storeManager,
         FrontendInterface $cache,
         Data $helperData,
-        ObjectManagerInterface $objectManager
+        ObjectManagerInterface $objectManager,
+        Configurable $catalogProductTypeConfigurable
     ) {
         $this->objectManager   = $objectManager;
         $this->storeManager    = $storeManager;
         $this->realtimeManager = $realtimeManager;
         $this->cache           = $cache;
         $this->retailHepler    = $helperData;
+        $this->catalogProductTypeConfigurable = $catalogProductTypeConfigurable;
     }
 
     /**
@@ -144,6 +155,11 @@ class ModelAfterSave implements ObserverInterface
                     $ids = array_merge($ids, $_ids);
                 }
             }
+            if (($object->getTypeId() == Type::TYPE_SIMPLE
+                || $object->getTypeId() == Type::TYPE_VIRTUAL)
+                && $parentId = $this->getConfigurableParentId($object->getId())) {
+                   array_push($ids, $parentId);
+            }
             $this->realtimeManager->trigger(
                 RealtimeManager::PRODUCT_ENTITY,
                 join(",", array_unique($ids)),
@@ -184,5 +200,9 @@ class ModelAfterSave implements ObserverInterface
             }
         }
         return false;
+    }
+    protected function getConfigurableParentId($childId) {
+        $parentId = $this->catalogProductTypeConfigurable->getParentIdsByChild($childId);
+        return empty($parentId) ? false : $parentId[0];
     }
 }

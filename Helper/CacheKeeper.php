@@ -114,8 +114,11 @@ class CacheKeeper
             $_m = $this->getProductCacheInstanceModel();
             $_m->setData('is_over', 0)
                ->setData('store_id', $storeId)
-               ->setData('warehouse_id', $warehouseId)
                ->save();
+            if (!empty($warehouseId)) {
+                $_m->setData('warehouse_id', $warehouseId)
+                   ->save();
+            }
         }
 
         return $this->getIzProductModel();
@@ -144,7 +147,7 @@ class CacheKeeper
 
             $collection->addFieldToFilter('store_id', $storeId);
 
-            if (!is_null($warehouseId)) {
+            if (!empty($warehouseId)) {
                 $collection->addFieldToFilter('warehouse_id', $warehouseId);
             }
 
