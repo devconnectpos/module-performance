@@ -240,7 +240,7 @@ class RealtimeManager
      */
     public function processBatchData()
     {
-        if (RealtimeManager::$_useBatch === true && !is_null(RealtimeManager::$senderInstance)) {
+        if (RealtimeManager::$useBatch === true && !is_null(RealtimeManager::$senderInstance)) {
             if (function_exists('exec')) {
                 $this->saveDataRealtime($this->getBatchData());
             } else {
