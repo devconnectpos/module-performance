@@ -46,7 +46,9 @@ class AfterCheckout implements ObserverInterface
         /** @var Order $order */
         $order = $observer->getData('order');
 
-        if ($order->getData('retail_id') || $order->getData('shipping_method') === 'smstorepickup_smstorepickup') {
+        if ($order->getData('retail_id') ||
+            $order->getData('shipping_method') === 'smstorepickup_smstorepickup' ||
+            $order->getData('is_pwa') === 1) {
             $this->realtimeManager->trigger(
                 RealtimeManager::ORDER_ENTITY,
                 $order->getId(),
