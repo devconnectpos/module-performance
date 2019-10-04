@@ -28,6 +28,8 @@ use SM\Performance\Helper\CacheKeeper;
  */
 class Sender
 {
+    const REALTIME_URL_CONFIG_PATH = 'xpos/advance/realtime_url';
+    const LICENSE_KEY_CONFIG_PATH = 'xpos/general/retail_license';
 
     public static $CLOUD_URL = "http://cloud.connectpos.com";
     //static $CLOUD_URL = "http://cloud.local:2005";
@@ -90,13 +92,13 @@ class Sender
     public function sendMessage($entity, $entityId, $typeChange)
     {
         if (is_null($this->licenseKey)) {
-            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue("xpos/general/retail_license"));
+            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue(self::LICENSE_KEY_CONFIG_PATH));
         }
         if (is_null($this->baseUrl)) {
-            $this->baseUrl = $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
+            $this->baseUrl = $this->getRealtimeUrl();
         }
         if (!!$this->licenseKey && !!$this->baseUrl) {
-            $baseUrl = $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
+            $baseUrl = $this->getRealtimeUrl();
             $param   = [
                 'license'    => $this->licenseKey,
                 'base_url'   => $baseUrl,
@@ -120,10 +122,10 @@ class Sender
     public function sendMessages($data)
     {
         if (is_null($this->licenseKey)) {
-            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue("xpos/general/retail_license"));
+            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue(self::LICENSE_KEY_CONFIG_PATH));
         }
         if (is_null($this->baseUrl)) {
-            $this->baseUrl = $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
+            $this->baseUrl = $this->getRealtimeUrl();
         }
         $checkExisted = [];
         if (!!$this->licenseKey && !!$this->baseUrl) {
@@ -155,13 +157,18 @@ class Sender
         return false;
     }
 
+    /**
+     * @param $data
+     *
+     * @return string|null
+     */
     public function getDataToSendViaRawSender($data)
     {
         if (is_null($this->licenseKey)) {
-            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue("xpos/general/retail_license"));
+            $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue(self::LICENSE_KEY_CONFIG_PATH));
         }
         if (is_null($this->baseUrl)) {
-            $this->baseUrl = $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
+            $this->baseUrl = $this->getRealtimeUrl();
         }
         $checkExisted = [];
         if (!!$this->licenseKey && !!$this->baseUrl) {
@@ -235,5 +242,17 @@ class Sender
         return self::$CLOUD_URL . "/methods/client.trigger_realtime";
         //return "http://localhost:2005/methods/client.trigger_realtime";
         //return "http://xcloud.smartosc.com:2005/methods/client.trigger_realtime";
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getRealtimeUrl()
+    {
+        $realtimeUrl = $this->scopeConfig->getValue(self::REALTIME_URL_CONFIG_PATH);
+        if ($realtimeUrl && filter_var($realtimeUrl, FILTER_VALIDATE_URL)) {
+            return $realtimeUrl;
+        }
+        return $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
     }
 }
