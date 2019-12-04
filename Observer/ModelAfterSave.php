@@ -25,6 +25,15 @@ use SM\XRetail\Helper\Data;
  */
 class ModelAfterSave implements ObserverInterface
 {
+
+    /**
+     * @var \Magento\Bundle\Model\Product\Type
+     */
+    protected $bundleProductType;
+    /**
+     * @var \Magento\GroupedProduct\Model\Product\Type\Grouped
+     */
+    protected $groupedProductType;
     /**
      * @var \SM\Performance\Helper\RealtimeManager
      */
@@ -69,12 +78,14 @@ class ModelAfterSave implements ObserverInterface
     /**
      * ModelAfterSave constructor.
      *
-     * @param \SM\Performance\Helper\RealtimeManager $realtimeManager
-     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-     * @param \Magento\Framework\Cache\FrontendInterface $cache
-     * @param \SM\XRetail\Helper\Data $helperData
-     * @param \Magento\Framework\ObjectManagerInterface $objectManager
-     * @param Configurable $catalogProductTypeConfigurable
+     * @param \SM\Performance\Helper\RealtimeManager             $realtimeManager
+     * @param \Magento\Store\Model\StoreManagerInterface         $storeManager
+     * @param \Magento\Framework\Cache\FrontendInterface         $cache
+     * @param \SM\XRetail\Helper\Data                            $helperData
+     * @param \Magento\Framework\ObjectManagerInterface          $objectManager
+     * @param Configurable                                       $catalogProductTypeConfigurable
+     * @param \Magento\Bundle\Model\Product\Type                 $bundleProductType
+     * @param \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType
      */
     public function __construct(
         RealtimeManager $realtimeManager,
@@ -82,14 +93,18 @@ class ModelAfterSave implements ObserverInterface
         FrontendInterface $cache,
         Data $helperData,
         ObjectManagerInterface $objectManager,
-        Configurable $catalogProductTypeConfigurable
+        Configurable $catalogProductTypeConfigurable,
+        \Magento\Bundle\Model\Product\Type $bundleProductType,
+        \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType
     ) {
-        $this->objectManager   = $objectManager;
-        $this->storeManager    = $storeManager;
-        $this->realtimeManager = $realtimeManager;
-        $this->cache           = $cache;
-        $this->retailHepler    = $helperData;
+        $this->objectManager                  = $objectManager;
+        $this->storeManager                   = $storeManager;
+        $this->realtimeManager                = $realtimeManager;
+        $this->cache                          = $cache;
+        $this->retailHepler                   = $helperData;
         $this->catalogProductTypeConfigurable = $catalogProductTypeConfigurable;
+        $this->bundleProductType              = $bundleProductType;
+        $this->groupedProductType             = $groupedProductType;
     }
 
     /**
@@ -156,9 +171,13 @@ class ModelAfterSave implements ObserverInterface
                 }
             }
             if (($object->getTypeId() == Type::TYPE_SIMPLE
-                || $object->getTypeId() == Type::TYPE_VIRTUAL)
-                && $parentId = $this->getConfigurableParentId($object->getId())) {
-                   array_push($ids, $parentId);
+                 || $object->getTypeId() == Type::TYPE_VIRTUAL)) {
+                $ids = array_merge(
+                    $ids,
+                    $this->getBundleParentIds($object->getId()),
+                    $this->getGroupedParentIds($object->getId()),
+                    $this->getConfigurableParentIds($object->getId())
+                );
             }
             $this->realtimeManager->trigger(
                 RealtimeManager::PRODUCT_ENTITY,
@@ -199,10 +218,37 @@ class ModelAfterSave implements ObserverInterface
                 return true;
             }
         }
+
         return false;
     }
-    protected function getConfigurableParentId($childId) {
-        $parentId = $this->catalogProductTypeConfigurable->getParentIdsByChild($childId);
-        return empty($parentId) ? false : $parentId[0];
+
+    /**
+     * @param $childId
+     *
+     * @return string[]
+     */
+    protected function getConfigurableParentIds($childId)
+    {
+        return $this->catalogProductTypeConfigurable->getParentIdsByChild($childId);
+    }
+
+    /**
+     * @param $childId
+     *
+     * @return array
+     */
+    protected function getBundleParentIds($childId)
+    {
+        return $this->bundleProductType->getParentIdsByChild($childId);
+    }
+
+    /**
+     * @param $childId
+     *
+     * @return array
+     */
+    protected function getGroupedParentIds($childId)
+    {
+        return $this->groupedProductType->getParentIdsByChild($childId);
     }
 }

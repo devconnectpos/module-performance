@@ -21,6 +21,7 @@ class AfterRefund implements ObserverInterface
      */
     private $realtimeManager;
 
+
     /**
      * AfterCheckout constructor.
      *
@@ -45,6 +46,18 @@ class AfterRefund implements ObserverInterface
             $this->realtimeManager->trigger(
                 RealtimeManager::ORDER_ENTITY,
                 $creditmemo->getOrderId(),
+                RealtimeManager::TYPE_CHANGE_UPDATE
+            );
+        }
+        if ($creditmemo->getAllItems()) {
+            $items = $creditmemo->getAllItems();
+            $ids = [];
+            foreach ($items as $item) {
+                array_push($ids, $item->getProductId());
+            }
+            $this->realtimeManager->trigger(
+                RealtimeManager::PRODUCT_ENTITY,
+                join(",", array_unique($ids)),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
         }
