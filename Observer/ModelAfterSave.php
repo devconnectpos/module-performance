@@ -13,6 +13,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Quote\Model\Quote\Item;
+use Magento\Sales\Model\Order;
 use Magento\Store\Model\StoreManagerInterface;
 use SM\Performance\Helper\RealtimeManager;
 use SM\Sales\Repositories\OrderManagement;
@@ -74,18 +75,23 @@ class ModelAfterSave implements ObserverInterface
     protected $catalogProductTypeConfigurable;
 
     public static $SUPPORT_CHECK_REALTIME_API = false;
+    /**
+     * @var \Magento\Sales\Api\OrderRepositoryInterface
+     */
+    private $orderRepository;
 
     /**
      * ModelAfterSave constructor.
      *
-     * @param \SM\Performance\Helper\RealtimeManager             $realtimeManager
-     * @param \Magento\Store\Model\StoreManagerInterface         $storeManager
-     * @param \Magento\Framework\Cache\FrontendInterface         $cache
-     * @param \SM\XRetail\Helper\Data                            $helperData
-     * @param \Magento\Framework\ObjectManagerInterface          $objectManager
-     * @param Configurable                                       $catalogProductTypeConfigurable
-     * @param \Magento\Bundle\Model\Product\Type                 $bundleProductType
+     * @param \SM\Performance\Helper\RealtimeManager $realtimeManager
+     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
+     * @param \Magento\Framework\Cache\FrontendInterface $cache
+     * @param \SM\XRetail\Helper\Data $helperData
+     * @param \Magento\Framework\ObjectManagerInterface $objectManager
+     * @param Configurable $catalogProductTypeConfigurable
+     * @param \Magento\Bundle\Model\Product\Type $bundleProductType
      * @param \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType
+     * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
      */
     public function __construct(
         RealtimeManager $realtimeManager,
@@ -95,7 +101,8 @@ class ModelAfterSave implements ObserverInterface
         ObjectManagerInterface $objectManager,
         Configurable $catalogProductTypeConfigurable,
         \Magento\Bundle\Model\Product\Type $bundleProductType,
-        \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType
+        \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType,
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
         $this->objectManager                  = $objectManager;
         $this->storeManager                   = $storeManager;
@@ -105,6 +112,7 @@ class ModelAfterSave implements ObserverInterface
         $this->catalogProductTypeConfigurable = $catalogProductTypeConfigurable;
         $this->bundleProductType              = $bundleProductType;
         $this->groupedProductType             = $groupedProductType;
+        $this->orderRepository                = $orderRepository;
     }
 
     /**
@@ -204,6 +212,16 @@ class ModelAfterSave implements ObserverInterface
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
         }
+
+        if ($object instanceof \Magento\Sales\Model\Order) {
+            $this->updateOrderRetailStatus($object);
+        }
+        if ($object instanceof  \Magento\Sales\Model\Order\Item || $object instanceof \Magento\Sales\Model\Order\Shipment) {
+            $order = $object->getOrder();
+            if ($order->getId()) {
+                $this->updateOrderRetailStatus($order);
+            }
+        }
     }
 
     /**
@@ -250,5 +268,174 @@ class ModelAfterSave implements ObserverInterface
     protected function getGroupedParentIds($childId)
     {
         return $this->groupedProductType->getParentIdsByChild($childId);
+    }
+
+    protected function updateOrderRetailStatus(Order $order)
+    {
+        if (!$order->getData('retail_id')) {
+            return;
+        }
+        if ($order->hasCreditmemos()) {
+            $order = $this->updateRetailStatusForOrderRefunded($order);
+        } else {
+            //has shipment
+            if ($order->getData('retail_has_shipment')) {
+                $order = $this->updateRetailStatusForOrderHasShipment($order);
+            } else { //no shipment
+                $order = $this->updateRetailStatusForOrderHasNoShipment($order);
+            }
+        }
+
+        $this->orderRepository->save($order);
+    }
+
+    protected function updateRetailStatusForOrderRefunded(Order $order)
+    {
+        if ($order->getData('retail_has_shipment')) { //order has shipment
+            if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+                return $order;
+            }
+            if ($order->hasShipments()) {
+                if ($order->canShip()) { //order was partially shipped
+                    if ($order->canCreditmemo()) { //order was partially refunded
+                        if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED) {
+                            $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED);
+                        } else {
+                            return $order;
+                        }
+                    } else { //order was fully refunded
+                        if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_FULLY_REFUND) {
+                            $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                        } else {
+                            return $order;
+                        }
+                    }
+                } else { //order was fully shipped
+                    if ($order->canCreditmemo()) { //order was partially refunded
+                        if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED) {
+                            $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED);
+                        } else {
+                            return $order;
+                        }
+                    } else { //order was fully refunded
+                        if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_FULLY_REFUND) {
+                            $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                        } else {
+                            return $order;
+                        }
+                    }
+                }
+            } else { //order was not shipped
+                if ($order->canCreditmemo()) { //order was partially refunded
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED);
+                    } else {
+                        return $order;
+                    }
+                } else { //order was fully refunded
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_FULLY_REFUND) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                    } else {
+                        return $order;
+                    }
+                }
+            }
+        } else { //order has no shipment
+            if ($order->canCreditmemo()) { //order was partially refunded
+                if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND) {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND);
+                } else {
+                    return $order;
+                }
+            } else { //order was fully refunded
+                if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_FULLY_REFUND) {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                } else {
+                    return $order;
+                }
+            }
+        }
+        return $order;
+    }
+
+    protected function updateRetailStatusForOrderHasShipment(Order $order)
+    {
+        //ignore orders click and collect which were not invoiced
+        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+            return $order;
+        }
+        //check invoice
+        if (!$order->canInvoice() && $order->hasInvoices()) { //fully invoiced
+            //check shipment
+            if (!$order->canShip()) { //fully shipped
+                if (!$order->getData('is_exchange')) {
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED);
+                    } else {
+                        return $order;
+                    }
+                } else { // order exchange
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_EXCHANGE_SHIPPED) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_SHIPPED);
+                    } else {
+                        return $order;
+                    }
+                }
+
+            } else { //not shipped or partially shipped
+                if (!$order->getData('is_exchange')) {
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
+                    } else {
+                        return $order;
+                    }
+                } else { //order exchange
+                    if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_EXCHANGE_NOT_SHIPPED) {
+                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_NOT_SHIPPED);
+                    } else {
+                        return $order;
+                    }
+                }
+            }
+        } else { //not invoiced or partially invoiced
+            //check shipment
+            if (!$order->canShip() && $order->hasShipments()) { //fully shipped
+                if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED) {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED);
+                } else {
+                    return $order;
+                }
+            } else { //not shipped or partially shipped
+                if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_NOT_SHIPPED) {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_NOT_SHIPPED);
+                } else {
+                    return $order;
+                }
+            }
+        }
+        return $order;
+    }
+
+    protected function updateRetailStatusForOrderHasNoShipment(Order $order)
+    {
+        //check invoice
+        if (!$order->canInvoice() && $order->hasInvoices()) { //fully invoiced
+            if (!$order->getData('is_exchange')) {
+                if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_COMPLETE) {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE);
+                } else {
+                    return $order;
+                }
+            } else { //order exchange
+                return $order;
+            }
+        } else { //not invoiced or partially invoiced
+            if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_PAID) {
+                $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_PAID);
+            } else {
+                return $order;
+            }
+        }
+        return $order;
     }
 }

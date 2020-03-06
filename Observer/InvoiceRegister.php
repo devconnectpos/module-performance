@@ -43,6 +43,7 @@ class InvoiceRegister implements ObserverInterface
 
         if ($order->getData('retail_id') ||
             $order->getData('shipping_method') === 'smstorepickup_smstorepickup' ||
+            $order->getData('shipping_method') === 'mageworxpickup_mageworxpickup' ||
             $order->getData('is_pwa') === 1) {
             $this->realtimeManager->trigger(
                 RealtimeManager::ORDER_ENTITY,

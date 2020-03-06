@@ -29,6 +29,12 @@
     <event name="model_save_after">
         <observer name="retail_model_after_save" instance="SM\Performance\Observer\ModelAfterSave"/>
     </event>
+    <event name="entity_manager_save_after">
+        <observer name="entity_manager_after_save" instance="SM\Performance\Observer\EntityManagerAfterSave"/>
+    </event>
+    <event name="entity_manager_delete_after">
+        <observer name="entity_manager_after_delete" instance="SM\Performance\Observer\EntityManagerAfterDelete"/>
+    </event>
     <event name="model_delete_after">
         <observer name="retail_model_after_delete" instance="SM\Performance\Observer\ModelAfterDelete"/>
     </event>

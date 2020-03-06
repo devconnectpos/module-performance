@@ -33,7 +33,8 @@ class RealtimeManager
     const CUSTOMER_GROUP  = "customerGroup";
     const SETTING_ENTITY  = "settings";
     const TAX_ENTITY      = "taxes";
-    const SHIPPING_METHOD   = "shippingMethods";
+    const SHIPPING_METHOD = "shippingMethods";
+    const AW_CODE_POOL    = "awCodePool";
 
     const TYPE_CHANGE_NEW    = 'new';
     const TYPE_CHANGE_UPDATE = 'update';
