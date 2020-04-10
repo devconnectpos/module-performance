@@ -13,6 +13,9 @@
     <event name="sales_order_shipment_save_after">
         <observer name="retail_shipment" instance="SM\Performance\Observer\AfterShipment"/>
     </event>
+    <event name="order_cancel_after">
+        <observer name="retail_cancel_order" instance="SM\Performance\Observer\AfterCancelOrder"/>
+    </event>
 
     <!--Setting Realtime-->
     <event name="admin_system_config_changed_section_tax">
