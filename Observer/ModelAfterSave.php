@@ -275,7 +275,9 @@ class ModelAfterSave implements ObserverInterface
         if (!$order->getData('retail_id')) {
             return;
         }
-        if ($order->hasCreditmemos()) {
+        if ($order->getState() == Order::STATE_CANCELED) {
+            $order->setData('retail_status', OrderManagement::RETAIL_ORDER_CANCELED);
+        } else if ($order->hasCreditmemos()) {
             $order = $this->updateRetailStatusForOrderRefunded($order);
         } else {
             //has shipment

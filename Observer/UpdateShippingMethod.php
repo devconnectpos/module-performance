@@ -12,7 +12,6 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Shipping\Model\Config;
 use SM\Performance\Helper\RealtimeManager;
-use SM\Sales\Repositories\OrderManagement;
 
 class UpdateShippingMethod implements ObserverInterface
 {
@@ -23,18 +22,25 @@ class UpdateShippingMethod implements ObserverInterface
     private $realtimeManager;
 
     protected $shippingConfig;
-
-    /**
-     * UpdateShippingMethod constructor.
-     * @param RealtimeManager $realtimeManager
-     * @param \Magento\Shipping\Model\Config $shippingConfig
-     */
+	/**
+	 * @var \SM\Shipping\Helper\Shipping
+	 */
+	private $shippingHelper;
+	
+	/**
+	 * UpdateShippingMethod constructor.
+	 * @param RealtimeManager $realtimeManager
+	 * @param \Magento\Shipping\Model\Config $shippingConfig
+	 * @param \SM\Shipping\Helper\Shipping $shippingHelper
+	 */
     public function __construct(
         RealtimeManager $realtimeManager,
-        Config $shippingConfig
+        Config $shippingConfig,
+        \SM\Shipping\Helper\Shipping $shippingHelper
     ) {
         $this->shippingConfig = $shippingConfig;
         $this->realtimeManager = $realtimeManager;
+	    $this->shippingHelper = $shippingHelper;
     }
 
     /**
@@ -47,7 +53,7 @@ class UpdateShippingMethod implements ObserverInterface
         $activeCarriers = $this->shippingConfig->getAllCarriers();
         $codes = [];
         foreach ($activeCarriers as $carrierCode => $carrierModel) {
-            if (in_array($carrierCode, OrderManagement::getAllowedShippingMethods())) {
+            if (in_array($carrierCode, $this->shippingHelper->getAllowedShippingMethods())) {
                 $codes[] = $carrierCode;
             }
         }
