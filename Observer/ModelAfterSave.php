@@ -313,7 +313,9 @@ class ModelAfterSave implements ObserverInterface
                         }
                     }
                 } else { //order was fully shipped
-                    if ($order->canCreditmemo()) { //order was partially refunded
+                    if ($order->canCreditmemo() ||
+                        ($order->getIsRefundedPendingOrder() == '1' && $order->getState() !== Order::STATE_CLOSED)) {
+                        //order was partially refunded
                         if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED) {
                             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED);
                         } else {
@@ -328,7 +330,9 @@ class ModelAfterSave implements ObserverInterface
                     }
                 }
             } else { //order was not shipped
-                if ($order->canCreditmemo()) { //order was partially refunded
+                if ($order->canCreditmemo() ||
+                    ($order->getIsRefundedPendingOrder() == '1' && $order->getState() !== Order::STATE_CLOSED)) {
+                    //order was partially refunded
                     if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED) {
                         $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED);
                     } else {
@@ -343,7 +347,9 @@ class ModelAfterSave implements ObserverInterface
                 }
             }
         } else { //order has no shipment
-            if ($order->canCreditmemo()) { //order was partially refunded
+            if ($order->canCreditmemo() ||
+                ($order->getIsRefundedPendingOrder() == '1' && $order->getState() !== Order::STATE_CLOSED)) {
+                //order was partially refunded
                 if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND) {
                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND);
                 } else {
