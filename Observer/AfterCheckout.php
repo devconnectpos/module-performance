@@ -50,9 +50,13 @@ class AfterCheckout implements ObserverInterface
             $order->getData('shipping_method') === 'smstorepickup_smstorepickup' ||
             $order->getData('shipping_method') === 'mageworxpickup_mageworxpickup' ||
             $order->getData('is_pwa') === 1) {
+        	$entityId = $order->getId();
+        	if ($order->getData('origin_order_id')) {
+        		$entityId = join(',', [$order->getId(), $order->getData('origin_order_id')]);
+	        }
             $this->realtimeManager->trigger(
                 RealtimeManager::ORDER_ENTITY,
-                $order->getId(),
+	            $entityId,
                 RealtimeManager::TYPE_CHANGE_NEW
             );
         }
