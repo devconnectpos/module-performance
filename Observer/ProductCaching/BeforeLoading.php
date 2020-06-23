@@ -26,15 +26,25 @@ class BeforeLoading implements ObserverInterface
     private $objectManager;
 
     /**
+     * @var \SM\Core\Api\Data\XProductFactory
+     */
+    protected $xProductFactory;
+
+    /**
      * BeforeLoading constructor.
      *
-     * @param \SM\Performance\Helper\CacheKeeper        $cacheKeeper
+     * @param \SM\Performance\Helper\CacheKeeper $cacheKeeper
      * @param \Magento\Framework\ObjectManagerInterface $objectManager
+     * @param \SM\Core\Api\Data\XProductFactory $xProductFactory
      */
-    public function __construct(CacheKeeper $cacheKeeper, ObjectManagerInterface $objectManager)
-    {
+    public function __construct(
+        CacheKeeper $cacheKeeper,
+        ObjectManagerInterface $objectManager,
+        \SM\Core\Api\Data\XProductFactory $xProductFactory
+    ) {
         $this->cacheKeeper   = $cacheKeeper;
         $this->objectManager = $objectManager;
+        $this->xProductFactory = $xProductFactory;
     }
 
     /**
@@ -66,27 +76,31 @@ class BeforeLoading implements ObserverInterface
             if (!$cacheTime || is_nan($cacheTime)) {
                 throw new \Exception("Realtime must have param cache_time and cache time must be number");
             }
+            
+            if ($searchCriteria->getData('forceRealTime')) {
+            	return;
+            }
 
             if (floatval($cacheInfo->getData('cache_time')) < floatval($cacheTime)
                 || boolval($cacheInfo->getData('is_over')) !== true) {
                 return;
-            } else {
-                /** @var \SM\Performance\Model\AbstractProductCache $cacheInstance */
-                $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
-                $collection    = $cacheInstance->getCollection();
-
-                if ($searchCriteria->getData('entity_id') || $searchCriteria->getData('entityId')) {
-                    if (is_null($searchCriteria->getData('entity_id'))) {
-                        $ids = $searchCriteria->getData('entityId');
-                    } else {
-                        $ids = $searchCriteria->getData('entity_id');
-                    }
-                    $collection->addFieldToFilter('id', ['in' => explode(",", $ids)]);
-                }
-                $loadingData->setData(CacheKeeper::$IS_PULL_FROM_CACHE, true);
-                $loadingData->setData('collection', $collection);
-                $loadingData->setData('items', $this->retrieveDataFromCollection($collection));
             }
+            
+            /** @var \SM\Performance\Model\AbstractProductCache $cacheInstance */
+            $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
+            $collection    = $cacheInstance->getCollection();
+
+            if ($searchCriteria->getData('entity_id') || $searchCriteria->getData('entityId')) {
+                if (is_null($searchCriteria->getData('entity_id'))) {
+                    $ids = $searchCriteria->getData('entityId');
+                } else {
+                    $ids = $searchCriteria->getData('entity_id');
+                }
+                $collection->addFieldToFilter('id', ['in' => explode(",", $ids)]);
+            }
+            $loadingData->setData(CacheKeeper::$IS_PULL_FROM_CACHE, true);
+            $loadingData->setData('collection', $collection);
+            $loadingData->setData('items', $this->retrieveDataFromCollection($collection));
         } elseif (($cacheInfo && boolval($cacheInfo->getData('is_over')) === true)
                  || ($currentPage <= $cacheInfo->getData('current_page')
                      && intval($pageSize) === intval($cacheInfo->getData('page_size'))
@@ -144,7 +158,8 @@ class BeforeLoading implements ObserverInterface
         foreach ($collection as $item) {
             $itemData = json_decode($item->getData('data'), true);
             if (is_array($itemData)) {
-                $xProduct = new XProduct($itemData);
+                $xProduct = $this->xProductFactory->create();
+                $xProduct->setData($itemData);
                 $items[]  = $xProduct;
             }
         }

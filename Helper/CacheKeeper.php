@@ -228,7 +228,7 @@ class CacheKeeper
             ->addColumn(
                 'data',
                 Table::TYPE_TEXT,
-                null,
+                Table::MAX_TEXT_SIZE,
                 ['nullable' => true, 'unsigned' => true,],
                 'Product Data'
             )
