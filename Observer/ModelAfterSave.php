@@ -18,6 +18,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use SM\Performance\Helper\RealtimeManager;
 use SM\Sales\Repositories\OrderManagement;
 use SM\XRetail\Helper\Data;
+use SM\Customer\Model\ScgCustomerGroup;
 
 /**
  * Class ModelAfterSave
@@ -155,6 +156,14 @@ class ModelAfterSave implements ObserverInterface
             $this->realtimeManager->trigger(
                 RealtimeManager::CUSTOMER_GROUP,
                 $object->getData('customer_group_id'),
+                RealtimeManager::TYPE_CHANGE_UPDATE
+            );
+        }
+
+        if ($object instanceof ScgCustomerGroup) {
+            $this->realtimeManager->trigger(
+                RealtimeManager::SCG_CUSTOMER_GROUP,
+                $object->getData('entity_id'),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
         }

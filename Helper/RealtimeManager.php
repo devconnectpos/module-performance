@@ -26,19 +26,21 @@ class RealtimeManager
     public static $CAN_SEND_REAL_TIME = true;
     public static $USE_ASYNC          = true;
 
-    const ORDER_ENTITY    = "orders";
-    const PRODUCT_ENTITY  = "products";
-    const CATEGORY_ENTITY = "category";
-    const CUSTOMER_ENTITY = "customers";
-    const CUSTOMER_GROUP  = "customerGroup";
-    const SETTING_ENTITY  = "settings";
-    const TAX_ENTITY      = "taxes";
-    const SHIPPING_METHOD = "shippingMethods";
-    const AW_CODE_POOL    = "awCodePool";
+    const ORDER_ENTITY        = "orders";
+    const PRODUCT_ENTITY      = "products";
+    const CATEGORY_ENTITY     = "category";
+    const CUSTOMER_ENTITY     = "customers";
+    const CUSTOMER_GROUP      = "customerGroup";
+    const SCG_CUSTOMER_GROUP  = "scgCustomerGroup";
+    const SETTING_ENTITY      = "settings";
+    const TAX_ENTITY          = "taxes";
+    const SHIPPING_METHOD     = "shippingMethods";
+    const AW_CODE_POOL        = "awCodePool";
+    const CUSTOMER_OCCUPATION = 'customerOccupation';
 
-    const TYPE_CHANGE_NEW    = 'new';
-    const TYPE_CHANGE_UPDATE = 'update';
-    const TYPE_CHANGE_REMOVE = 'remove';
+    const TYPE_CHANGE_NEW     = 'new';
+    const TYPE_CHANGE_UPDATE  = 'update';
+    const TYPE_CHANGE_REMOVE  = 'remove';
 
     /**
      * @var \SM\Performance\Gateway\Sender
