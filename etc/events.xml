@@ -62,4 +62,8 @@
     <event name="after_load_x_product">
         <observer name="caching_product_after" instance="SM\Performance\Observer\ProductCaching\AfterLoading"/>
     </event>
+
+    <event name="catalog_product_import_bunch_save_after">
+        <observer name="realtime_imported_products" instance="SM\Performance\Observer\AfterImportProduct"/>
+    </event>
 </config>
