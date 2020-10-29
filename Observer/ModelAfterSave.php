@@ -245,7 +245,7 @@ class ModelAfterSave implements ObserverInterface
      *
      * @return string[]
      */
-    protected function getConfigurableParentIds($childId)
+    public function getConfigurableParentIds($childId)
     {
         return $this->catalogProductTypeConfigurable->getParentIdsByChild($childId);
     }
@@ -255,7 +255,7 @@ class ModelAfterSave implements ObserverInterface
      *
      * @return array
      */
-    protected function getBundleParentIds($childId)
+    public function getBundleParentIds($childId)
     {
         return $this->bundleProductType->getParentIdsByChild($childId);
     }
@@ -265,12 +265,12 @@ class ModelAfterSave implements ObserverInterface
      *
      * @return array
      */
-    protected function getGroupedParentIds($childId)
+    public function getGroupedParentIds($childId)
     {
         return $this->groupedProductType->getParentIdsByChild($childId);
     }
-
-    protected function updateOrderRetailStatus(Order $order)
+    
+    public function updateOrderRetailStatus(Order $order)
     {
         if (!$order->getData('retail_id')) {
             return;
@@ -290,8 +290,8 @@ class ModelAfterSave implements ObserverInterface
 
         $this->orderRepository->save($order);
     }
-
-    protected function updateRetailStatusForOrderRefunded(Order $order)
+    
+    public function updateRetailStatusForOrderRefunded(Order $order)
     {
         if ($order->getData('retail_has_shipment')) { //order has shipment
             if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
@@ -359,8 +359,8 @@ class ModelAfterSave implements ObserverInterface
         }
         return $order;
     }
-
-    protected function updateRetailStatusForOrderHasShipment(Order $order)
+    
+    public function updateRetailStatusForOrderHasShipment(Order $order)
     {
         //ignore orders click and collect which were not invoiced
         if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
@@ -417,8 +417,8 @@ class ModelAfterSave implements ObserverInterface
         }
         return $order;
     }
-
-    protected function updateRetailStatusForOrderHasNoShipment(Order $order)
+    
+    public function updateRetailStatusForOrderHasNoShipment(Order $order)
     {
         //check invoice
         if (!$order->canInvoice() && $order->hasInvoices()) { //fully invoiced
