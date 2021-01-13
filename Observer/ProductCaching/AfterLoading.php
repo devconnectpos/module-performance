@@ -8,6 +8,7 @@
 namespace SM\Performance\Observer\ProductCaching;
 
 use Exception;
+use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\ObjectManagerInterface;
@@ -31,17 +32,25 @@ class AfterLoading implements ObserverInterface
     private $objectManager;
 
     /**
+     * @var RequestInterface
+     */
+    private $request;
+
+    /**
      * AfterLoading constructor.
      *
      * @param \SM\Performance\Helper\CacheKeeper        $cacheKeeper
      * @param \Magento\Framework\ObjectManagerInterface $objectManager
+     * @param RequestInterface                          $request
      */
     public function __construct(
         CacheKeeper $cacheKeeper,
-        ObjectManagerInterface $objectManager
+        ObjectManagerInterface $objectManager,
+        RequestInterface $request
     ) {
         $this->cacheKeeper   = $cacheKeeper;
         $this->objectManager = $objectManager;
+        $this->request = $request;
     }
 
     /**
@@ -58,6 +67,15 @@ class AfterLoading implements ObserverInterface
         $searchCriteria = $loadingData->getData('search_criteria');
         $storeId        = $searchCriteria->getData('storeId');
         $warehouseId    = WarehouseIntegrateManagement::getWarehouseId();
+
+        if (!$warehouseId) {
+            if (isset($searchCriteria['warehouse_id']) && $searchCriteria['warehouse_id']) {
+                $warehouseId = $searchCriteria['warehouse_id'];
+            } else {
+                $warehouseId = $this->request->getParam('warehouse_id');
+            }
+            WarehouseIntegrateManagement::setWarehouseId($warehouseId);
+        }
 
         $this->cacheKeeper->getInstance($storeId, $warehouseId);
         $cacheInfo = $this->cacheKeeper->getCacheInstanceInfo($storeId, $warehouseId);

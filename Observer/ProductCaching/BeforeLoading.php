@@ -7,6 +7,7 @@
 
 namespace SM\Performance\Observer\ProductCaching;
 
+use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\ObjectManagerInterface;
@@ -31,20 +32,28 @@ class BeforeLoading implements ObserverInterface
     protected $xProductFactory;
 
     /**
+     * @var RequestInterface
+     */
+    private $request;
+
+    /**
      * BeforeLoading constructor.
      *
-     * @param \SM\Performance\Helper\CacheKeeper $cacheKeeper
+     * @param \SM\Performance\Helper\CacheKeeper        $cacheKeeper
      * @param \Magento\Framework\ObjectManagerInterface $objectManager
-     * @param \SM\Core\Api\Data\XProductFactory $xProductFactory
+     * @param \SM\Core\Api\Data\XProductFactory         $xProductFactory
+     * @param RequestInterface                          $request
      */
     public function __construct(
         CacheKeeper $cacheKeeper,
         ObjectManagerInterface $objectManager,
-        \SM\Core\Api\Data\XProductFactory $xProductFactory
+        \SM\Core\Api\Data\XProductFactory $xProductFactory,
+        RequestInterface $request
     ) {
         $this->cacheKeeper   = $cacheKeeper;
         $this->objectManager = $objectManager;
         $this->xProductFactory = $xProductFactory;
+        $this->request = $request;
     }
 
     /**
@@ -59,6 +68,15 @@ class BeforeLoading implements ObserverInterface
         $searchCriteria = $loadingData->getData('search_criteria');
         $storeId        = $searchCriteria->getData('storeId');
         $warehouseId    = WarehouseIntegrateManagement::getWarehouseId();
+
+        if (!$warehouseId) {
+            if (isset($searchCriteria['warehouse_id']) && $searchCriteria['warehouse_id']) {
+                $warehouseId = $searchCriteria['warehouse_id'];
+            } else {
+                $warehouseId = $this->request->getParam('warehouse_id');
+            }
+            WarehouseIntegrateManagement::setWarehouseId($warehouseId);
+        }
 
         $cacheInfo = $this->cacheKeeper->getCacheInstanceInfo($storeId, $warehouseId);
 
@@ -76,7 +94,7 @@ class BeforeLoading implements ObserverInterface
             if (!$cacheTime || is_nan($cacheTime)) {
                 throw new \Exception("Realtime must have param cache_time and cache time must be number");
             }
-            
+
             if ($searchCriteria->getData('forceRealTime')) {
             	return;
             }
@@ -85,7 +103,7 @@ class BeforeLoading implements ObserverInterface
                 || boolval($cacheInfo->getData('is_over')) !== true) {
                 return;
             }
-            
+
             /** @var \SM\Performance\Model\AbstractProductCache $cacheInstance */
             $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
             $collection    = $cacheInstance->getCollection();
