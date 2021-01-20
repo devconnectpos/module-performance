@@ -155,7 +155,7 @@ class CacheKeeper
 
             if ($instanceInfo->getId()) {
                 if (!$this->connection->isTableExists($this->getTableName($storeId, $warehouseId))) {
-                    throw new Exception("can not find iz cache table in server, please flush cache");
+                    throw new Exception("Cannot find iz product cache table in the database. Please flush all caches");
                 }
                 $this->cachedInstance[$cacheKey] = $instanceInfo;
             } else {
