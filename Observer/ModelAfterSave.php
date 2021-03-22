@@ -67,6 +67,9 @@ class ModelAfterSave implements ObserverInterface
             "special_price",
             "price"
         ];
+
+    private $orderRetailStatusUpdated = false;
+
     /**
      * Catalog product type configurable
      *
@@ -272,6 +275,10 @@ class ModelAfterSave implements ObserverInterface
     
     public function updateOrderRetailStatus(Order $order)
     {
+        if ($this->orderRetailStatusUpdated) {
+            return;
+        }
+
         if (!$order->getData('retail_id')) {
             return;
         }
@@ -289,6 +296,7 @@ class ModelAfterSave implements ObserverInterface
         }
 
         $this->orderRepository->save($order);
+        $this->orderRetailStatusUpdated = true;
     }
     
     public function updateRetailStatusForOrderRefunded(Order $order)
