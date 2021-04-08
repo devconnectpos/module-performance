@@ -5,6 +5,7 @@ namespace SM\Performance\Command;
 use Exception;
 use Magento\Catalog\Model\Product\Visibility;
 use Magento\Catalog\Model\ProductFactory;
+use Magento\Framework\App\State;
 use Magento\Tax\Model\ResourceModel\TaxClass\CollectionFactory;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -13,22 +14,30 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class DummySku extends Command
 {
-
+    /**
+     * @var ProductFactory
+     */
     protected $productFactory;
+    /**
+     * @var CollectionFactory
+     */
     private $taxClassCollectionFactory;
 
     /**
      * DummySku constructor.
      *
-     * @param \Magento\Catalog\Model\ProductFactory                       $productFactory
+     * @param \Magento\Catalog\Model\ProductFactory $productFactory
      * @param \Magento\Tax\Model\ResourceModel\TaxClass\CollectionFactory $taxClassCollectionFactory
-     * @param null                                                        $name
+     * @param State $appState
+     * @param null $name
      */
     public function __construct(
         ProductFactory $productFactory,
         CollectionFactory $taxClassCollectionFactory,
+        State $appState,
         $name = null
     ) {
+        $appState->setAreaCode('adminhtml');
         parent::__construct($name);
         $this->productFactory            = $productFactory;
         $this->taxClassCollectionFactory = $taxClassCollectionFactory;
@@ -123,7 +132,7 @@ class DummySku extends Command
                                 'qty'                     => 999 //qty
                             ]
                         )//->setCategoryIds([3, 10]); //assign product to categories
-                    ;
+;
                     $product->save();
                     if ($i % 100 === 0) {
                         $output->writeln('<info>added product with sku: ' . $product->getSku() . ' - num of' . ($i + 1) . '</info>');
