@@ -2,6 +2,7 @@
 
 namespace SM\Performance\Command;
 
+use Magento\Framework\App\State;
 use SM\Performance\Helper\RealtimeManager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -23,9 +24,11 @@ class SendRealtime extends Command
 
     public function __construct(
         RealtimeManager $realtimeManager,
+        State $appState,
         $name = null
     ) {
         $this->realtimeManager = $realtimeManager;
+        $appState->setAreaCode('adminhtml');
         parent::__construct($name);
     }
 
