@@ -144,7 +144,7 @@ class RealtimeManager
                 if (function_exists('exec')) {
                     $this->process
                         ->setCommand(
-                            "bin/magento retail:sendrealtime " . "'" . json_encode(
+                            "bin/magento cpos:sendrealtime " . "'" . json_encode(
                                 [
                                     [
                                         'entity'      => $entity,

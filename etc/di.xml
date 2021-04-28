@@ -35,9 +35,8 @@
     <type name="Magento\Framework\Console\CommandList">
         <arguments>
             <argument name="commands" xsi:type="array">
-                <item name="sm_performance_command_sendrealtime" xsi:type="object">SM\Performance\Command\SendRealtime</item>
-                <!--<item name="sm_performance_command_dummysku" xsi:type="object">SM\Performance\Command\DummySku</item>-->
-                <!--<item name="sm_performance_command_testasync" xsi:type="object">SM\Performance\Command\TestAsync</item>-->
+                <item name="cpos_performance_command_sendrealtime" xsi:type="object">SM\Performance\Command\SendRealtime</item>
+                <item name="cpos_performance_command_generate_product_cache" xsi:type="object">SM\Performance\Command\GenerateProductCache</item>
             </argument>
         </arguments>
     </type>

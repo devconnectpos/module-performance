@@ -11,7 +11,6 @@ use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\ObjectManagerInterface;
-use SM\Core\Api\Data\XProduct;
 use SM\Integrate\Model\WarehouseIntegrateManagement;
 use SM\Performance\Helper\CacheKeeper;
 
@@ -96,7 +95,7 @@ class BeforeLoading implements ObserverInterface
             }
 
             if ($searchCriteria->getData('forceRealTime')) {
-            	return;
+                return;
             }
 
             if (floatval($cacheInfo->getData('cache_time')) < floatval($cacheTime)

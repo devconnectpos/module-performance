@@ -3,6 +3,7 @@
 namespace SM\Performance\Command;
 
 use Magento\Framework\App\State;
+use Magento\Framework\Exception\LocalizedException;
 use SM\Performance\Helper\RealtimeManager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -28,13 +29,17 @@ class SendRealtime extends Command
         $name = null
     ) {
         $this->realtimeManager = $realtimeManager;
-        $appState->setAreaCode('adminhtml');
+        try {
+            $appState->getAreaCode();
+        } catch (LocalizedException $e) {
+            $appState->setAreaCode('adminhtml');
+        }
         parent::__construct($name);
     }
 
     protected function configure()
     {
-        $this->setName("retail:sendrealtime");
+        $this->setName("cpos:sendrealtime");
         $this->setDescription("Realtime sync command for PHP async task");
         $this->addArgument('data', InputArgument::REQUIRED, "json data to send server");
         parent::configure();
