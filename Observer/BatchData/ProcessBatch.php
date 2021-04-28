@@ -54,7 +54,7 @@ class ProcessBatch implements ObserverInterface
             } else {
                 if (function_exists('exec')) {
                     $this->process
-                        ->setCommand("bin/magento retail:sendrealtime " . "'" . json_encode($this->realtimeManager->getBatchData()) . "'")
+                        ->setCommand("bin/magento cpos:sendrealtime " . "'" . json_encode($this->realtimeManager->getBatchData()) . "'")
                         ->start();
                 } else {
                     $this->realtimeManager->getSenderInstance()->sendMessages($this->realtimeManager->getBatchData());
