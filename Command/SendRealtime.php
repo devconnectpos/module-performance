@@ -17,6 +17,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class SendRealtime extends Command
 {
+    protected $appState;
 
     /**
      * @var \SM\Performance\Helper\RealtimeManager
@@ -29,11 +30,7 @@ class SendRealtime extends Command
         $name = null
     ) {
         $this->realtimeManager = $realtimeManager;
-        try {
-            $appState->getAreaCode();
-        } catch (LocalizedException $e) {
-            $appState->setAreaCode('adminhtml');
-        }
+        $this->appState = $appState;
         parent::__construct($name);
     }
 
@@ -47,6 +44,11 @@ class SendRealtime extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        try {
+            $this->appState->getAreaCode();
+        } catch (\Magento\Framework\Exception\LocalizedException $e) {
+            $this->appState->setAreaCode('adminhtml');
+        }
         $data = $input->getArgument('data');
         if (!is_null($data) && is_string($data)) {
             $data = json_decode($data, true);
