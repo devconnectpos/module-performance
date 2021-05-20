@@ -10,12 +10,13 @@ namespace SM\Performance\Helper;
 use Exception;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Ddl\Table;
-use Magento\Framework\ObjectManagerInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use SM\Integrate\Model\WarehouseIntegrateManagement;
 use SM\Performance\Model\IzProductFactory;
 use SM\Performance\Model\ProductCacheInstanceFactory;
 use SM\Performance\Model\ResourceModel\ProductCacheInstance\CollectionFactory;
+use SM\Product\Repositories\ProductManagement;
+use SM\XRetail\Model\ResourceModel\Outlet\CollectionFactory as OutletCollectionFactory;
 
 /**
  * Class CacheKeeper
@@ -29,9 +30,16 @@ class CacheKeeper
      * @var bool
      */
     public static $USE_CACHE = true;
-
     public static $IS_PULL_FROM_CACHE = 'IS_PULL_FROM_CACHE';
 
+    /**
+     * @var ProductManagement
+     */
+    protected $productManagement;
+    /**
+     * @var OutletCollectionFactory
+     */
+    protected $outletCollectionFactory;
     /**
      * @var array
      */
@@ -40,10 +48,6 @@ class CacheKeeper
      * @var \SM\Performance\Model\ResourceModel\ProductCacheInstance\CollectionFactory
      */
     protected $productCacheInstanceCollectionFactory;
-    /**
-     * @var \Magento\Framework\ObjectManagerInterface
-     */
-    private $objectManager;
     /**
      * @var \SM\Performance\Model\ProductCacheInstanceFactory
      */
@@ -73,27 +77,30 @@ class CacheKeeper
      * CacheKeeper constructor.
      *
      * @param \SM\Performance\Model\ResourceModel\ProductCacheInstance\CollectionFactory $productCacheInstanceCollectionFactory
-     * @param \SM\Performance\Model\ProductCacheInstanceFactory                          $productCacheInstanceFactory
-     * @param \Magento\Framework\ObjectManagerInterface                                  $objectManager
-     * @param \Magento\Store\Model\StoreManagerInterface                                 $storeManager
-     * @param \SM\Performance\Model\IzProductFactory                                     $izProductFactory
-     * @param \Magento\Framework\App\ResourceConnection                                  $resource
+     * @param \SM\Performance\Model\ProductCacheInstanceFactory $productCacheInstanceFactory
+     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
+     * @param \SM\Performance\Model\IzProductFactory $izProductFactory
+     * @param \Magento\Framework\App\ResourceConnection $resource
+     * @param ProductManagement $productManagement
+     * @param OutletCollectionFactory $outletCollectionFactory
      */
     public function __construct(
         CollectionFactory $productCacheInstanceCollectionFactory,
         ProductCacheInstanceFactory $productCacheInstanceFactory,
-        ObjectManagerInterface $objectManager,
         StoreManagerInterface $storeManager,
         IzProductFactory $izProductFactory,
-        ResourceConnection $resource
+        ResourceConnection $resource,
+        ProductManagement $productManagement,
+        OutletCollectionFactory $outletCollectionFactory
     ) {
-        $this->objectManager                         = $objectManager;
         $this->productCacheInstanceCollectionFactory = $productCacheInstanceCollectionFactory;
-        $this->productCacheInstanceFactory           = $productCacheInstanceFactory;
-        $this->storeManager                          = $storeManager;
-        $this->izProductFactory                      = $izProductFactory;
-        $this->resource                              = $resource;
-        $this->connection                            = $resource->getConnection();
+        $this->productCacheInstanceFactory = $productCacheInstanceFactory;
+        $this->storeManager = $storeManager;
+        $this->izProductFactory = $izProductFactory;
+        $this->resource = $resource;
+        $this->connection = $resource->getConnection();
+        $this->productManagement = $productManagement;
+        $this->outletCollectionFactory = $outletCollectionFactory;
     }
 
     /**
@@ -284,5 +291,78 @@ class CacheKeeper
             }
 
         }
+    }
+
+    public function generateProductCacheTables()
+    {
+        $this->truncateTableCacheInstances();
+
+        $outlets = $this->getOutlets();
+        foreach ($outlets as $outlet) {
+            $storeId = $outlet->getStoreId();
+            try {
+                $this->storeManager->getStore($storeId);
+            } catch (\Magento\Framework\Exception\NoSuchEntityException $exception) {
+                continue;
+            }
+            $warehouseId = $outlet->getWarehouseId();
+            $searchCriteria = new \Magento\Framework\DataObject();
+            $searchCriteria->setData('storeId', $storeId);
+            $searchCriteria->setData('warehouse_id', $warehouseId);
+            $productCollection = $this->productManagement->getProductCollection($searchCriteria);
+            $this->processCacheInstance($productCollection, $storeId, $warehouseId);
+        }
+
+        return $this;
+    }
+
+    protected function processCacheInstance($productCollection, $storeId, $warehouseId = null)
+    {
+        $this->getInstance($storeId, $warehouseId);
+        $cacheInstance = $this->getInstance($storeId, $warehouseId);
+        $cacheInstance->getResource()->setStoreId($storeId);
+        $cacheInstance->getResource()->setWarehouseId($warehouseId);
+        $cacheInfo = $this->getCacheInstanceInfo($storeId, $warehouseId);
+
+        foreach ($productCollection as $product) {
+            $xProduct =  $this->productManagement->processXProduct(
+                $product,
+                $storeId,
+                $warehouseId
+            );
+
+            $cacheInstance->setData('id', $xProduct->getId())
+                ->setData('data', json_encode($xProduct->getData()))
+                ->save();
+            
+        }
+
+        $cacheInfo->setData('cache_time', CacheKeeper::getCacheTime());
+        $cacheInfo->setData('page_size', 50);
+        $cacheInfo->setData('current_page', (int) $productCollection->getSize() / 50 + 1);
+        $cacheInfo->setData('is_over', true);
+        $cacheInfo->save();
+
+        return $this;
+    }
+
+    protected function truncateTableCacheInstances()
+    {
+        $cacheModel = $this->productCacheInstanceFactory->create();
+        /** @var \Magento\Framework\DB\Adapter\AdapterInterface $connection */
+        $connection = $cacheModel->getResource()->getConnection();
+        $tableName = $cacheModel->getResource()->getMainTable();
+        $connection->truncateTable($tableName);
+        return $this;
+    }
+
+    protected function getOutlets()
+    {
+        $collection = $this->outletCollectionFactory->create();
+        $collection->addFieldToSelect('store_id')
+            ->addFieldToSelect('warehouse_id')
+            ->addFieldToFilter('is_active', ['eq' => 1]);
+        $collection->getSelect()->group(['main_table.store_id', 'main_table.warehouse_id']);
+        return $collection;
     }
 }
