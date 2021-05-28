@@ -48,7 +48,7 @@ class AfterLoading implements ObserverInterface
         ObjectManagerInterface $objectManager,
         RequestInterface $request
     ) {
-        $this->cacheKeeper   = $cacheKeeper;
+        $this->cacheKeeper = $cacheKeeper;
         $this->objectManager = $objectManager;
         $this->request = $request;
     }
@@ -65,8 +65,9 @@ class AfterLoading implements ObserverInterface
         $loadingData = $observer->getData('loading_data');
         /** @var \Magento\Framework\DataObject $searchCriteria */
         $searchCriteria = $loadingData->getData('search_criteria');
-        $storeId        = $searchCriteria->getData('storeId');
-        $warehouseId    = WarehouseIntegrateManagement::getWarehouseId();
+        $storeId = $searchCriteria->getData('storeId');
+        $warehouseId = WarehouseIntegrateManagement::getWarehouseId();
+        $outletId = WarehouseIntegrateManagement::getOutletId();
 
         if (!$warehouseId) {
             if (isset($searchCriteria['warehouse_id']) && $searchCriteria['warehouse_id']) {
@@ -75,6 +76,15 @@ class AfterLoading implements ObserverInterface
                 $warehouseId = $this->request->getParam('warehouse_id');
             }
             WarehouseIntegrateManagement::setWarehouseId($warehouseId);
+        }
+
+        if (!$outletId) {
+            if (isset($searchCriteria['outlet_id']) && $searchCriteria['outlet_id']) {
+                $outletId = $searchCriteria['outlet_id'];
+            } else {
+                $outletId = $this->request->getParam('outlet_id');
+            }
+            WarehouseIntegrateManagement::setOutletId($outletId);
         }
 
         $this->cacheKeeper->getInstance($storeId, $warehouseId);
@@ -88,8 +98,8 @@ class AfterLoading implements ObserverInterface
                 $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
                 try {
                     $cacheInstance->setData('id', $item->getId())
-                                  ->setData('data', json_encode($item->getData()))
-                                  ->save();
+                        ->setData('data', json_encode($item->getData()))
+                        ->save();
                 } catch (Exception $e) {
                 }
             }
