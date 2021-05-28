@@ -282,6 +282,7 @@ class CacheKeeper
         $collection = $this->getProductCacheInstanceCollection();
         foreach ($collection as $cacheInstanceInfo) {
             WarehouseIntegrateManagement::setWarehouseId($cacheInstanceInfo->getData('warehouse_id'));
+            WarehouseIntegrateManagement::setWarehouseId($cacheInstanceInfo->getData('outlet_id'));
             try {
                 $this->getIzProductModel()
                      ->getCollection()
@@ -334,7 +335,7 @@ class CacheKeeper
             $cacheInstance->setData('id', $xProduct->getId())
                 ->setData('data', json_encode($xProduct->getData()))
                 ->save();
-            
+
         }
 
         $cacheInfo->setData('cache_time', CacheKeeper::getCacheTime());

@@ -49,7 +49,7 @@ class BeforeLoading implements ObserverInterface
         \SM\Core\Api\Data\XProductFactory $xProductFactory,
         RequestInterface $request
     ) {
-        $this->cacheKeeper   = $cacheKeeper;
+        $this->cacheKeeper = $cacheKeeper;
         $this->objectManager = $objectManager;
         $this->xProductFactory = $xProductFactory;
         $this->request = $request;
@@ -65,8 +65,9 @@ class BeforeLoading implements ObserverInterface
         $loadingData = $observer->getData('loading_data');
         /** @var \Magento\Framework\DataObject $searchCriteria */
         $searchCriteria = $loadingData->getData('search_criteria');
-        $storeId        = $searchCriteria->getData('storeId');
-        $warehouseId    = WarehouseIntegrateManagement::getWarehouseId();
+        $storeId = $searchCriteria->getData('storeId');
+        $warehouseId = WarehouseIntegrateManagement::getWarehouseId();
+        $outletId = WarehouseIntegrateManagement::getOutletId();
 
         if (!$warehouseId) {
             if (isset($searchCriteria['warehouse_id']) && $searchCriteria['warehouse_id']) {
@@ -77,17 +78,26 @@ class BeforeLoading implements ObserverInterface
             WarehouseIntegrateManagement::setWarehouseId($warehouseId);
         }
 
+        if (!$outletId) {
+            if (isset($searchCriteria['outlet_id']) && $searchCriteria['outlet_id']) {
+                $outletId = $searchCriteria['outlet_id'];
+            } else {
+                $outletId = $this->request->getParam('outlet_id');
+            }
+            WarehouseIntegrateManagement::setOutletId($outletId);
+        }
+
         $cacheInfo = $this->cacheKeeper->getCacheInstanceInfo($storeId, $warehouseId);
 
         $currentPage = $searchCriteria->getData('currentPage');
-        $pageSize    = $searchCriteria->getData('pageSize');
+        $pageSize = $searchCriteria->getData('pageSize');
 
         if (!$cacheInfo || !CacheKeeper::$USE_CACHE) {
             return;
         }
 
         $isRealTime = floatval($searchCriteria->getData('realTime')) == 1;
-        $cacheTime  = $searchCriteria->getData('cache_time');
+        $cacheTime = $searchCriteria->getData('cache_time');
 
         if ($isRealTime) {
             if (!$cacheTime || is_nan($cacheTime)) {
@@ -99,13 +109,14 @@ class BeforeLoading implements ObserverInterface
             }
 
             if (floatval($cacheInfo->getData('cache_time')) < floatval($cacheTime)
-                || boolval($cacheInfo->getData('is_over')) !== true) {
+                || boolval($cacheInfo->getData('is_over')) !== true
+            ) {
                 return;
             }
 
             /** @var \SM\Performance\Model\AbstractProductCache $cacheInstance */
             $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
-            $collection    = $cacheInstance->getCollection();
+            $collection = $cacheInstance->getCollection();
 
             if ($searchCriteria->getData('entity_id') || $searchCriteria->getData('entityId')) {
                 if (is_null($searchCriteria->getData('entity_id'))) {
@@ -119,11 +130,12 @@ class BeforeLoading implements ObserverInterface
             $loadingData->setData('collection', $collection);
             $loadingData->setData('items', $this->retrieveDataFromCollection($collection));
         } elseif (($cacheInfo && boolval($cacheInfo->getData('is_over')) === true)
-                 || ($currentPage <= $cacheInfo->getData('current_page')
-                     && intval($pageSize) === intval($cacheInfo->getData('page_size'))
-                     && $searchCriteria->getData('productIds') === null
-                     && $searchCriteria->getData('entityId') === null
-                     && $searchCriteria->getData('entity_id') === null)) {
+            || ($currentPage <= $cacheInfo->getData('current_page')
+                && intval($pageSize) === intval($cacheInfo->getData('page_size'))
+                && $searchCriteria->getData('productIds') === null
+                && $searchCriteria->getData('entityId') === null
+                && $searchCriteria->getData('entity_id') === null)
+        ) {
             /** @var \SM\Performance\Model\AbstractProductCache $cacheInstance */
             $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
 
@@ -177,7 +189,7 @@ class BeforeLoading implements ObserverInterface
             if (is_array($itemData)) {
                 $xProduct = $this->xProductFactory->create();
                 $xProduct->setData($itemData);
-                $items[]  = $xProduct;
+                $items[] = $xProduct;
             }
         }
 
