@@ -2,6 +2,7 @@
 
 namespace SM\Performance\Command;
 
+use Magento\Framework\App\Area;
 use Magento\Framework\App\State;
 use Magento\Framework\Exception\LocalizedException;
 use SM\Performance\Helper\RealtimeManager;
@@ -44,22 +45,32 @@ class SendRealtime extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        try {
-            $this->appState->getAreaCode();
-        } catch (\Magento\Framework\Exception\LocalizedException $e) {
-            $this->appState->setAreaCode('adminhtml');
+        $randomSeconds = mt_rand(0, 4);
+        if ($randomSeconds > 0) {
+            $output->writeln("<info>Delayed realtime execution by {$randomSeconds} seconds</info>");
+            sleep($randomSeconds);
         }
-        $data = $input->getArgument('data');
-        if (!is_null($data) && is_string($data)) {
-            $data = json_decode($data, true);
-            if (is_array($data)) {
-                $res = $this->realtimeManager->getSenderInstance()->sendMessages($data);
-                $output->writeln('<info>' . json_encode($res) . '</info>');
-            } else {
-                $output->writeln('<error>data_wrong_format</error>');
-            }
-        } else {
-            $output->writeln('<error>data_wrong_format</error>');
+        try {
+            $this->appState->emulateAreaCode(Area::AREA_ADMINHTML, function (InputInterface $input, OutputInterface $output){
+                $data = $input->getArgument('data');
+                if (!is_null($data) && is_string($data)) {
+                    $data = json_decode($data, true);
+                    if (is_array($data)) {
+                        $res = $this->realtimeManager->getSenderInstance()->sendMessages($data);
+                        $output->writeln('<info>' . json_encode($res) . '</info>');
+                    } else {
+                        $output->writeln('<error>data_wrong_format</error>');
+                    }
+                } else {
+                    $output->writeln('<error>data_wrong_format</error>');
+                }
+            }, [$input, $output]);
+        } catch (\Throwable $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to send realtime');
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
         }
     }
 }
