@@ -42,7 +42,6 @@ class GenerateProductCache extends Command
         //calculating execution time
         $start = microtime(true);
         try {
-            $this->state->getAreaCode();
             $this->state->emulateAreaCode(
                 Area::AREA_ADMINHTML, function (OutputInterface $output, $start) {
                 $this->cacheKeeper->generateProductCacheTables();
@@ -52,11 +51,11 @@ class GenerateProductCache extends Command
             }, [$output, $start]
             );
         } catch (\Throwable $e) {
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
             $logger->info('====> Failed to generate product cache');
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
         }
     }
 
