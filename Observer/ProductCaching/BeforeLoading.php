@@ -100,6 +100,7 @@ class BeforeLoading implements ObserverInterface
         $cacheTime = $searchCriteria->getData('cache_time');
 
         if ($isRealTime) {
+            $loadingData->setData(CacheKeeper::$IS_REALTIME, true);
             if (!$cacheTime || is_nan($cacheTime)) {
                 throw new \Exception("Realtime must have param cache_time and cache time must be number");
             }

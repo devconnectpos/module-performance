@@ -76,11 +76,10 @@ class Sender
         LoggerInterface $logger,
         ScopeConfigInterface $scopeConfig,
         EncryptorInterface $encryptor
-    )
-    {
-        $this->encryptor       = $encryptor;
-        $this->scopeConfig     = $scopeConfig;
-        $this->logger          = $logger;
+    ) {
+        $this->encryptor = $encryptor;
+        $this->scopeConfig = $scopeConfig;
+        $this->logger = $logger;
         $this->storeManagement = $storeManagement;
     }
 
@@ -99,16 +98,16 @@ class Sender
         }
         if (!!$this->licenseKey && !!$this->baseUrl) {
             $baseUrl = $this->getRealtimeUrl();
-            $param   = [
+            $param = [
                 'license'    => $this->licenseKey,
                 'base_url'   => $baseUrl,
                 'data'       => [
                     'entity'      => $entity,
                     'entity_id'   => $entityId,
-                    'type_change' => $typeChange
+                    'type_change' => $typeChange,
                 ],
                 'cache_time' => intval(microtime(true) * 1000),
-                'created_at' => date("Y-m-d H:i:s")
+                'created_at' => date("Y-m-d H:i:s"),
             ];
             $this->sendPostViaSocket($this->getBaseUrl(), $param);
         }
@@ -131,23 +130,23 @@ class Sender
         if (!!$this->licenseKey && !!$this->baseUrl) {
             $batch = [];
             foreach ($data as $datum) {
-                $checkKey = $datum['entity'] . '_' . $datum['entity_id'] . '_' . $datum['type_change'];
-                if (in_array($checkKey, $checkExisted)) {
+                $checkKey = $datum['entity'].'_'.$datum['entity_id'].'_'.$datum['type_change'];
+                if (in_array($checkKey, $checkExisted, true)) {
                     continue;
                 }
 
-                $param          = [
+                $param = [
                     'license'    => $this->licenseKey,
                     'base_url'   => $this->baseUrl,
                     'data'       => [
                         'entity'      => $datum['entity'],
                         'entity_id'   => $datum['entity_id'],
-                        'type_change' => $datum['type_change']
+                        'type_change' => $datum['type_change'],
                     ],
                     'cache_time' => CacheKeeper::getCacheTime(),
-                    'created_at' => date("Y-m-d H:i:s")
+                    'created_at' => date("Y-m-d H:i:s"),
                 ];
-                $batch[]        = $param;
+                $batch[] = $param;
                 $checkExisted[] = $checkKey;
             }
 
@@ -174,27 +173,27 @@ class Sender
         if (!!$this->licenseKey && !!$this->baseUrl) {
             $batch = [];
             foreach ($data as $datum) {
-                $checkKey = $datum['entity'] . '_' . $datum['entity_id'] . '_' . $datum['type_change'];
-                if (in_array($checkKey, $checkExisted)) {
+                $checkKey = $datum['entity'].'_'.$datum['entity_id'].'_'.$datum['type_change'];
+                if (in_array($checkKey, $checkExisted, true)) {
                     continue;
                 }
 
-                $param          = [
+                $param = [
                     'license'    => $this->licenseKey,
                     'base_url'   => $this->baseUrl,
                     'data'       => [
                         'entity'      => $datum['entity'],
                         'entity_id'   => $datum['entity_id'],
-                        'type_change' => $datum['type_change']
+                        'type_change' => $datum['type_change'],
                     ],
                     'cache_time' => CacheKeeper::getCacheTime(),
-                    'created_at' => date("Y-m-d H:i:s")
+                    'created_at' => date("Y-m-d H:i:s"),
                 ];
-                $batch[]        = $param;
+                $batch[] = $param;
                 $checkExisted[] = $checkKey;
             }
 
-            return $this->getBaseUrl() . ' ' . $this->licenseKey . ' ' . json_encode(["batch" => $batch]);
+            return $this->getBaseUrl().' '.$this->licenseKey.' '.json_encode(["batch" => $batch], JSON_THROW_ON_ERROR);
         }
 
         return null;
@@ -208,7 +207,7 @@ class Sender
      */
     public function sendPostViaSocket($url, $params)
     {
-        $content = json_encode($params);
+        $content = json_encode($params, JSON_THROW_ON_ERROR);
 
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_HEADER, false);
@@ -216,7 +215,8 @@ class Sender
         curl_setopt(
             $curl,
             CURLOPT_HTTPHEADER,
-            ["Content-type: application/json"]);
+            ["Content-type: application/json"]
+        );
         curl_setopt($curl, CURLOPT_POST, true);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $content);
 
@@ -227,19 +227,20 @@ class Sender
         if ($status != 200) {
             $this->logger->debug(
                 "Error: call to URL $url failed with status $status, response $json_response, curl_error "
-                . curl_error($curl)
-                . ", curl_errno "
-                . curl_errno($curl));
+                .curl_error($curl)
+                .", curl_errno "
+                .curl_errno($curl)
+            );
         }
 
         curl_close($curl);
 
-        return $response = json_decode($json_response, true);
+        return json_decode($json_response, true, 512, JSON_THROW_ON_ERROR);
     }
 
     protected function getBaseUrl()
     {
-        return self::$CLOUD_URL . "/methods/client.trigger_realtime";
+        return self::$CLOUD_URL."/methods/client.trigger_realtime";
         //return "http://localhost:2005/methods/client.trigger_realtime";
         //return "http://xcloud.smartosc.com:2005/methods/client.trigger_realtime";
     }
@@ -253,6 +254,7 @@ class Sender
         if ($realtimeUrl && filter_var($realtimeUrl, FILTER_VALIDATE_URL)) {
             return $realtimeUrl;
         }
+
         return $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
     }
 }

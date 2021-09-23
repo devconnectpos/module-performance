@@ -65,7 +65,7 @@ class ModelAfterSave implements ObserverInterface
             "sku",
             "image",
             "special_price",
-            "price"
+            "price",
         ];
 
     private $orderRetailStatusUpdated = false;
@@ -86,15 +86,15 @@ class ModelAfterSave implements ObserverInterface
     /**
      * ModelAfterSave constructor.
      *
-     * @param \SM\Performance\Helper\RealtimeManager $realtimeManager
-     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-     * @param \Magento\Framework\Cache\FrontendInterface $cache
-     * @param \SM\XRetail\Helper\Data $helperData
-     * @param \Magento\Framework\ObjectManagerInterface $objectManager
-     * @param Configurable $catalogProductTypeConfigurable
-     * @param \Magento\Bundle\Model\Product\Type $bundleProductType
+     * @param \SM\Performance\Helper\RealtimeManager             $realtimeManager
+     * @param \Magento\Store\Model\StoreManagerInterface         $storeManager
+     * @param \Magento\Framework\Cache\FrontendInterface         $cache
+     * @param \SM\XRetail\Helper\Data                            $helperData
+     * @param \Magento\Framework\ObjectManagerInterface          $objectManager
+     * @param Configurable                                       $catalogProductTypeConfigurable
+     * @param \Magento\Bundle\Model\Product\Type                 $bundleProductType
      * @param \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType
-     * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+     * @param \Magento\Sales\Api\OrderRepositoryInterface        $orderRepository
      */
     public function __construct(
         RealtimeManager $realtimeManager,
@@ -107,15 +107,15 @@ class ModelAfterSave implements ObserverInterface
         \Magento\GroupedProduct\Model\Product\Type\Grouped $groupedProductType,
         \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
-        $this->objectManager                  = $objectManager;
-        $this->storeManager                   = $storeManager;
-        $this->realtimeManager                = $realtimeManager;
-        $this->cache                          = $cache;
-        $this->retailHepler                   = $helperData;
+        $this->objectManager = $objectManager;
+        $this->storeManager = $storeManager;
+        $this->realtimeManager = $realtimeManager;
+        $this->cache = $cache;
+        $this->retailHepler = $helperData;
         $this->catalogProductTypeConfigurable = $catalogProductTypeConfigurable;
-        $this->bundleProductType              = $bundleProductType;
-        $this->groupedProductType             = $groupedProductType;
-        $this->orderRepository                = $orderRepository;
+        $this->bundleProductType = $bundleProductType;
+        $this->groupedProductType = $groupedProductType;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -163,26 +163,22 @@ class ModelAfterSave implements ObserverInterface
         }
 
         if ($object instanceof Product) {
-            if (ModelAfterSave::$SUPPORT_CHECK_REALTIME_API) {
-                if ($request && false !== strpos($request->getPathInfo(), "rest/V1/products")) {
-                    if (!$this->isDataChange($object)) {
-                        return;
-                    }
-                }
+            if (ModelAfterSave::$SUPPORT_CHECK_REALTIME_API && $request && false !== strpos($request->getPathInfo(), "rest/V1/products") && !$this->isDataChange($object)) {
+                return;
             }
 
             $ids = [];
-            array_push($ids, $object->getId());
-            if ($object->getTypeId() == 'configurable') {
+            $ids[] = $object->getId();
+            if ($object->getTypeId() === 'configurable') {
                 /** @var \Magento\ConfigurableProduct\Model\Product\Type\Configurable $instanceType */
                 $instanceType = $object->getTypeInstance();
-                $childIds     = $instanceType->getChildrenIds($object->getId());
+                $childIds = $instanceType->getChildrenIds($object->getId());
                 foreach ($childIds as $_ids) {
-                    $ids = array_merge($ids, $_ids);
+                    $ids[] = $_ids;
                 }
             }
-            if (($object->getTypeId() == Type::TYPE_SIMPLE
-                 || $object->getTypeId() == Type::TYPE_VIRTUAL)) {
+            $productType = $object->getTypeId();
+            if (in_array($productType, [Type::TYPE_SIMPLE, Type::TYPE_VIRTUAL], true)) {
                 $ids = array_merge(
                     $ids,
                     $this->getBundleParentIds($object->getId()),
@@ -219,7 +215,7 @@ class ModelAfterSave implements ObserverInterface
         if ($object instanceof \Magento\Sales\Model\Order) {
             $this->updateOrderRetailStatus($object);
         }
-        if ($object instanceof  \Magento\Sales\Model\Order\Item || $object instanceof \Magento\Sales\Model\Order\Shipment) {
+        if ($object instanceof \Magento\Sales\Model\Order\Item || $object instanceof \Magento\Sales\Model\Order\Shipment) {
             $order = $object->getOrder();
             if ($order->getId()) {
                 $this->updateOrderRetailStatus($order);
@@ -272,7 +268,7 @@ class ModelAfterSave implements ObserverInterface
     {
         return $this->groupedProductType->getParentIdsByChild($childId);
     }
-    
+
     public function updateOrderRetailStatus(Order $order)
     {
         if ($this->orderRetailStatusUpdated) {
@@ -284,21 +280,23 @@ class ModelAfterSave implements ObserverInterface
         }
         if ($order->getState() == Order::STATE_CANCELED) {
             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_CANCELED);
-        } else if ($order->hasCreditmemos()) {
-            $order = $this->updateRetailStatusForOrderRefunded($order);
         } else {
-            //has shipment
-            if ($order->getData('retail_has_shipment')) {
-                $order = $this->updateRetailStatusForOrderHasShipment($order);
-            } else { //no shipment
-                $order = $this->updateRetailStatusForOrderHasNoShipment($order);
+            if ($order->hasCreditmemos()) {
+                $order = $this->updateRetailStatusForOrderRefunded($order);
+            } else {
+                //has shipment
+                if ($order->getData('retail_has_shipment')) {
+                    $order = $this->updateRetailStatusForOrderHasShipment($order);
+                } else { //no shipment
+                    $order = $this->updateRetailStatusForOrderHasNoShipment($order);
+                }
             }
         }
 
         $this->orderRepository->save($order);
         $this->orderRetailStatusUpdated = true;
     }
-    
+
     public function updateRetailStatusForOrderRefunded(Order $order)
     {
         if ($order->getData('retail_has_shipment')) { //order has shipment
@@ -365,9 +363,10 @@ class ModelAfterSave implements ObserverInterface
                 }
             }
         }
+
         return $order;
     }
-    
+
     public function updateRetailStatusForOrderHasShipment(Order $order)
     {
         //ignore orders click and collect which were not invoiced
@@ -391,7 +390,6 @@ class ModelAfterSave implements ObserverInterface
                         return $order;
                     }
                 }
-
             } else { //not shipped or partially shipped
                 if (!$order->getData('is_exchange')) {
                     if ($order->getData('retail_status') !== OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED) {
@@ -423,9 +421,10 @@ class ModelAfterSave implements ObserverInterface
                 }
             }
         }
+
         return $order;
     }
-    
+
     public function updateRetailStatusForOrderHasNoShipment(Order $order)
     {
         //check invoice
@@ -446,6 +445,7 @@ class ModelAfterSave implements ObserverInterface
                 return $order;
             }
         }
+
         return $order;
     }
 }
