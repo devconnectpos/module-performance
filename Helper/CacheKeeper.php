@@ -31,6 +31,7 @@ class CacheKeeper
      */
     public static $USE_CACHE = true;
     public static $IS_PULL_FROM_CACHE = 'IS_PULL_FROM_CACHE';
+    public static $IS_REALTIME = false;
 
     /**
      * @var ProductManagement

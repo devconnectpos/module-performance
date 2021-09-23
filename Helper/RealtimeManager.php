@@ -14,6 +14,7 @@ use Psr\Log\LoggerInterface;
 use SM\Performance\Model\RealtimeStorageFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Model\Shell\Process;
+use SM\Performance\Gateway\Sender;
 
 /**
  * Class RealtimeManager
@@ -24,19 +25,19 @@ class RealtimeManager
 {
 
     public static $CAN_SEND_REAL_TIME = true;
-    public static $USE_ASYNC          = true;
+    public static $USE_ASYNC = true;
 
-    const ORDER_ENTITY    = "orders";
-    const PRODUCT_ENTITY  = "products";
+    const ORDER_ENTITY = "orders";
+    const PRODUCT_ENTITY = "products";
     const CATEGORY_ENTITY = "category";
     const CUSTOMER_ENTITY = "customers";
-    const CUSTOMER_GROUP  = "customerGroup";
-    const SETTING_ENTITY  = "settings";
-    const TAX_ENTITY      = "taxes";
+    const CUSTOMER_GROUP = "customerGroup";
+    const SETTING_ENTITY = "settings";
+    const TAX_ENTITY = "taxes";
     const SHIPPING_METHOD = "shippingMethods";
-    const AW_CODE_POOL    = "awCodePool";
+    const AW_CODE_POOL = "awCodePool";
 
-    const TYPE_CHANGE_NEW    = 'new';
+    const TYPE_CHANGE_NEW = 'new';
     const TYPE_CHANGE_UPDATE = 'update';
     const TYPE_CHANGE_REMOVE = 'remove';
 
@@ -98,11 +99,11 @@ class RealtimeManager
         LoggerInterface $logger
     ) {
         $this->objectManager = $objectManager;
-        $this->process       = $process;
-        $this->retailHelper  = $retailHelper;
-        $this->logger        = $logger;
-        $this->configLoader  = $loader;
-        $this->realtimeStorageFactory  = $realtimeStorageFactory;
+        $this->process = $process;
+        $this->retailHelper = $retailHelper;
+        $this->logger = $logger;
+        $this->configLoader = $loader;
+        $this->realtimeStorageFactory = $realtimeStorageFactory;
     }
 
     /**
@@ -114,45 +115,43 @@ class RealtimeManager
      */
     public function trigger($entity, $entityId, $typeChange)
     {
-        if (!RealtimeManager::$CAN_SEND_REAL_TIME) {
+        if (!self::$CAN_SEND_REAL_TIME) {
             return;
         }
 
-        if (is_null(RealtimeManager::$senderInstance)) {
-            RealtimeManager::$senderInstance = $this->objectManager->create('SM\Performance\Gateway\Sender');
+        if (is_null(self::$senderInstance)) {
+            self::$senderInstance = $this->objectManager->create(Sender::class);
         }
-        if (!RealtimeManager::$useBatch) {
+        if (!self::$useBatch) {
             // realtime from server magento to connectpos
             $config = $this->configLoader->getConfigByPath('xpos/advance', 'default', 0);
             if (isset($config['xpos/advance/sync_realtime'])
-                && $config['xpos/advance/sync_realtime']['value'] == 'cronjob') {
+                && $config['xpos/advance/sync_realtime']['value'] === 'cronjob'
+            ) {
                 $dataRealtime = [
                     [
                         'entity'      => $entity,
                         'entity_id'   => $entityId,
-                        'type_change' => $typeChange
-                    ]
+                        'type_change' => $typeChange,
+                    ],
                 ];
                 if (function_exists('exec')) {
                     $this->saveDataRealtime($dataRealtime);
                 } else {
-                    RealtimeManager::$senderInstance->sendMessages($dataRealtime);
+                    self::$senderInstance->sendMessages($dataRealtime);
                 }
-
             } else {
                 // if php exec is enable
                 if (function_exists('exec')) {
                     $this->process
                         ->setCommand(
-                            "bin/magento cpos:sendrealtime " . "'" . json_encode(
+                            "bin/magento cpos:sendrealtime "."'".json_encode([
                                 [
-                                    [
-                                        'entity'      => $entity,
-                                        'entity_id'   => $entityId,
-                                        'type_change' => $typeChange
-                                    ]
-                                ]
-                            ) . "'"
+                                    'entity'      => $entity,
+                                    'entity_id'   => $entityId,
+                                    'type_change' => $typeChange,
+                                ],
+                            ], JSON_THROW_ON_ERROR)."'"
                         )
                         ->start();
                 } else {
@@ -160,13 +159,12 @@ class RealtimeManager
                         [
                             'entity'      => $entity,
                             'entity_id'   => $entityId,
-                            'type_change' => $typeChange
-                        ]
+                            'type_change' => $typeChange,
+                        ],
                     ];
 
-                    RealtimeManager::$senderInstance->sendMessages($dataRealtime);
+                    self::$senderInstance->sendMessages($dataRealtime);
                 }
-
             }
         } else {
             // realtime from connectpos to server magento
@@ -184,16 +182,16 @@ class RealtimeManager
     public function saveDataRealtime($dataRealtime)
     {
         try {
-            $created_at         = $this->retailHelper->getCurrentTime();
-            $realtimeModel      = $this->realtimeStorageFactory->create();
-            $transactionData    = [
+            $created_at = $this->retailHelper->getCurrentTime();
+            $realtimeModel = $this->realtimeStorageFactory->create();
+            $transactionData = [
                 "data_realtime" => json_encode($dataRealtime),
-                "creation_time" => $created_at
+                "creation_time" => $created_at,
             ];
 
             $realtimeModel->addData($transactionData)->save();
         } catch (Exception $e) {
-            throw new \Exception("Error save data realtime: " . $e->getMessage());
+            throw new \Exception("Error save data realtime: ".$e->getMessage());
         }
     }
 
@@ -202,11 +200,11 @@ class RealtimeManager
      */
     public function getSenderInstance()
     {
-        if (is_null(RealtimeManager::$senderInstance)) {
-            RealtimeManager::$senderInstance = $this->objectManager->create('SM\Performance\Gateway\Sender');
+        if (is_null(self::$senderInstance)) {
+            self::$senderInstance = $this->objectManager->create('SM\Performance\Gateway\Sender');
         }
 
-        return RealtimeManager::$senderInstance;
+        return self::$senderInstance;
     }
 
     /**
@@ -218,10 +216,10 @@ class RealtimeManager
      */
     protected function pushToBatch($entity, $entityId, $typeChange)
     {
-        RealtimeManager::$batchData[] = [
+        self::$batchData[] = [
             'entity'      => $entity,
             'entity_id'   => $entityId,
-            'type_change' => $typeChange
+            'type_change' => $typeChange,
         ];
 
         return $this;
@@ -232,7 +230,7 @@ class RealtimeManager
      */
     public function getBatchData()
     {
-        return RealtimeManager::$batchData;
+        return self::$batchData;
     }
 
     /**
@@ -241,11 +239,11 @@ class RealtimeManager
      */
     public function processBatchData()
     {
-        if (RealtimeManager::$useBatch === true && !is_null(RealtimeManager::$senderInstance)) {
+        if (self::$useBatch === true && !is_null(self::$senderInstance)) {
             if (function_exists('exec')) {
                 $this->saveDataRealtime($this->getBatchData());
             } else {
-                RealtimeManager::$senderInstance->sendMessages($this->getBatchData());
+                self::$senderInstance->sendMessages($this->getBatchData());
             }
         }
 
@@ -257,9 +255,9 @@ class RealtimeManager
      */
     public function useBatchData()
     {
-        if (RealtimeManager::$useBatch !== true) {
-            RealtimeManager::$useBatch  = true;
-            RealtimeManager::$batchData = [];
+        if (self::$useBatch !== true) {
+            self::$useBatch = true;
+            self::$batchData = [];
         }
 
         return $this;

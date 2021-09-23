@@ -45,19 +45,23 @@ class SendRealtime extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $randomSeconds = mt_rand(0, 4);
-        if ($randomSeconds > 0) {
-            $output->writeln("<info>Delayed realtime execution by {$randomSeconds} seconds</info>");
-            sleep($randomSeconds);
-        }
+        $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos_realtime.log');
+        $logger = new \Zend\Log\Logger();
+        $logger->addWriter($writer);
+
         try {
+            $randomSeconds = random_int(0, 5);
+            if ($randomSeconds > 0) {
+                $output->writeln("<info>Delayed realtime execution by {$randomSeconds} seconds</info>");
+                sleep($randomSeconds);
+            }
             $this->appState->emulateAreaCode(Area::AREA_ADMINHTML, function (InputInterface $input, OutputInterface $output){
                 $data = $input->getArgument('data');
-                if (!is_null($data) && is_string($data)) {
-                    $data = json_decode($data, true);
+                if (is_string($data)) {
+                    $data = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
                     if (is_array($data)) {
                         $res = $this->realtimeManager->getSenderInstance()->sendMessages($data);
-                        $output->writeln('<info>' . json_encode($res) . '</info>');
+                        $output->writeln('<info>' .json_encode($res, JSON_THROW_ON_ERROR). '</info>');
                     } else {
                         $output->writeln('<error>data_wrong_format</error>');
                     }
@@ -66,9 +70,6 @@ class SendRealtime extends Command
                 }
             }, [$input, $output]);
         } catch (\Throwable $e) {
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
-            $logger = new \Zend\Log\Logger();
-            $logger->addWriter($writer);
             $logger->info('====> Failed to send realtime');
             $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
         }

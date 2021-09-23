@@ -95,6 +95,12 @@ class AfterLoading implements ObserverInterface
             $items = $loadingData->getData('items');
 
             foreach ($items as $item) {
+                if ($loadingData->getData(CacheKeeper::$IS_REALTIME)) {
+                    $randomSeconds = random_int(0, 5);
+                    if ($randomSeconds > 0) {
+                        sleep($randomSeconds);
+                    }
+                }
                 $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
                 try {
                     $cacheInstance->setData('id', $item->getId())
