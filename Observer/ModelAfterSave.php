@@ -174,7 +174,7 @@ class ModelAfterSave implements ObserverInterface
                 $instanceType = $object->getTypeInstance();
                 $childIds = $instanceType->getChildrenIds($object->getId());
                 foreach ($childIds as $_ids) {
-                    $ids[] = $_ids;
+                    $ids += $_ids;
                 }
             }
             $productType = $object->getTypeId();
