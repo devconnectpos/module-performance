@@ -58,10 +58,10 @@ class SendRealtime extends Command
             $this->appState->emulateAreaCode(Area::AREA_ADMINHTML, function (InputInterface $input, OutputInterface $output){
                 $data = $input->getArgument('data');
                 if (is_string($data)) {
-                    $data = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
+                    $data = json_decode($data, true, 512);
                     if (is_array($data)) {
                         $res = $this->realtimeManager->getSenderInstance()->sendMessages($data);
-                        $output->writeln('<info>' .json_encode($res, JSON_THROW_ON_ERROR). '</info>');
+                        $output->writeln('<info>' .json_encode($res). '</info>');
                     } else {
                         $output->writeln('<error>data_wrong_format</error>');
                     }
