@@ -193,7 +193,7 @@ class Sender
                 $checkExisted[] = $checkKey;
             }
 
-            return $this->getBaseUrl().' '.$this->licenseKey.' '.json_encode(["batch" => $batch], JSON_THROW_ON_ERROR);
+            return $this->getBaseUrl().' '.$this->licenseKey.' '.json_encode(["batch" => $batch]);
         }
 
         return null;
@@ -207,7 +207,7 @@ class Sender
      */
     public function sendPostViaSocket($url, $params)
     {
-        $content = json_encode($params, JSON_THROW_ON_ERROR);
+        $content = json_encode($params);
 
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_HEADER, false);
@@ -235,7 +235,7 @@ class Sender
 
         curl_close($curl);
 
-        return json_decode($json_response, true, 512, JSON_THROW_ON_ERROR);
+        return json_decode($json_response, true, 512);
     }
 
     protected function getBaseUrl()

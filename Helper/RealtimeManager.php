@@ -151,7 +151,7 @@ class RealtimeManager
                                     'entity_id'   => $entityId,
                                     'type_change' => $typeChange,
                                 ],
-                            ], JSON_THROW_ON_ERROR)."'"
+                            ])."'"
                         )
                         ->start();
                 } else {
