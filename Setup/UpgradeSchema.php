@@ -11,6 +11,8 @@ use Magento\Framework\Setup\ModuleContextInterface;
 use Magento\Framework\Setup\SchemaSetupInterface;
 use Magento\Framework\DB\Adapter\AdapterInterface;
 use Magento\Framework\DB\Ddl\Table;
+use Symfony\Component\Console\Output\OutputInterface;
+
 /**
  * @codeCoverageIgnore
  */
@@ -21,8 +23,6 @@ class UpgradeSchema implements UpgradeSchemaInterface {
      */
     public function upgrade(SchemaSetupInterface $setup, ModuleContextInterface $context)
     {
-        $installer = $setup;
-        $installer->startSetup();
         if (version_compare($context->getVersion(), '0.0.9', '<')) {
             $this->addProductCacheInstanceTable($setup);
         }
@@ -30,23 +30,40 @@ class UpgradeSchema implements UpgradeSchemaInterface {
         if (version_compare($context->getVersion(), '0.0.8', '<')) {
             $this->addRealtimeStorageTable($setup);
         }
+    }
 
-        if (version_compare($context->getVersion(), '0.1.0', '<')) {
-            $this->modifyColumnWarehouseProductCacheInstanceTable($setup);
-        }
+    /**
+     * @param SchemaSetupInterface $setup
+     * @param OutputInterface      $output
+     *
+     * @throws \Zend_Db_Exception
+     */
+    public function execute(SchemaSetupInterface $setup, OutputInterface $output)
+    {
+        $output->writeln('  |__ Create realtime storage table');
+        $this->addRealtimeStorageTable($setup);
+        $output->writeln('  |__ Create product cache instance table');
+        $this->addProductCacheInstanceTable($setup);
     }
 
     /**
      * @param \Magento\Framework\Setup\SchemaSetupInterface   $setup
      * @param \Magento\Framework\Setup\ModuleContextInterface $context
+     *
+     * @throws \Zend_Db_Exception
      */
     protected function addRealtimeStorageTable(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        $installer->startSetup();
-        $setup->getConnection()->dropTable($setup->getTable('sm_realtime_storage'));
-        $table = $installer->getConnection()->newTable(
-            $installer->getTable('sm_realtime_storage')
+        $setup->startSetup();
+
+        if ($setup->getConnection()->isTableExists($setup->getTable('sm_realtime_storage'))) {
+            $setup->endSetup();
+
+            return;
+        }
+
+        $table = $setup->getConnection()->newTable(
+            $setup->getTable('sm_realtime_storage')
         )->addColumn(
             'id',
             Table::TYPE_INTEGER,
@@ -66,22 +83,28 @@ class UpgradeSchema implements UpgradeSchemaInterface {
             ['nullable' => false, 'default' => Table::TIMESTAMP_INIT],
             'Creation Time'
         );
-        $installer->getConnection()->createTable($table);
-
-        $installer->endSetup();
+        $setup->getConnection()->createTable($table);
+        $setup->endSetup();
     }
 
     /**
      * @param \Magento\Framework\Setup\SchemaSetupInterface   $setup
      * @param \Magento\Framework\Setup\ModuleContextInterface $context
+     *
+     * @throws \Zend_Db_Exception
      */
     protected function addProductCacheInstanceTable(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        $installer->startSetup();
-        $setup->getConnection()->dropTable($setup->getTable('sm_performance_product_cache_instance'));
-        $table = $installer->getConnection()->newTable(
-            $installer->getTable('sm_performance_product_cache_instance')
+        $setup->startSetup();
+
+        if ($setup->getConnection()->isTableExists($setup->getTable('sm_performance_product_cache_instance'))) {
+            $setup->endSetup();
+
+            return;
+        }
+
+        $table = $setup->getConnection()->newTable(
+            $setup->getTable('sm_performance_product_cache_instance')
         )->addColumn(
             'id',
             Table::TYPE_INTEGER,
@@ -102,9 +125,9 @@ class UpgradeSchema implements UpgradeSchemaInterface {
             'Cache Time'
         )->addColumn(
             'warehouse_id',
-            Table::TYPE_INTEGER,
-            null,
-            ['nullable' => true, 'unsigned' => true,],
+            Table::TYPE_TEXT,
+            255000,
+            ['nullable' => false],
             'WareHouse ID'
         )->addColumn(
             'store_id',
@@ -137,28 +160,7 @@ class UpgradeSchema implements UpgradeSchemaInterface {
             ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE],
             'Modification Time'
         );
-        $installer->getConnection()->createTable($table);
-
-        $installer->endSetup();
-    }
-
-    protected function modifyColumnWarehouseProductCacheInstanceTable(SchemaSetupInterface $setup)
-    {
-        $productCacheInstanceTable = $setup->getTable('sm_performance_product_cache_instance');
-        $setup->startSetup();
-
-        $setup->getConnection()->changeColumn(
-            $setup->getTable($productCacheInstanceTable),
-            'warehouse_id',
-            'warehouse_id',
-            [
-                'type' => Table::TYPE_TEXT,
-                'length' => 255000,
-                ['nullable' => false],
-                'Warehouse ID'
-            ]
-        );
-
+        $setup->getConnection()->createTable($table);
         $setup->endSetup();
     }
 }
