@@ -12,6 +12,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
 use SM\Performance\Helper\RealtimeManager;
+use SM\Shipping\Model\Carrier\RetailStorePickUp;
 
 class InvoiceRegister implements ObserverInterface
 {
@@ -41,9 +42,14 @@ class InvoiceRegister implements ObserverInterface
         /** @var Order $order */
         $order = $observer->getData('order');
 
+        $shippingMethod = $order->getData('shipping_method');
+        $storePickupMethods = [
+            RetailStorePickUp::METHOD,
+            'mageworxpickup_mageworxpickup'
+        ];
+
         if ($order->getData('retail_id') ||
-            $order->getData('shipping_method') === 'smstorepickup_smstorepickup' ||
-            $order->getData('shipping_method') === 'mageworxpickup_mageworxpickup' ||
+            in_array($shippingMethod, $storePickupMethods, true) ||
             $order->getData('is_pwa') === 1) {
             $this->realtimeManager->trigger(
                 RealtimeManager::ORDER_ENTITY,

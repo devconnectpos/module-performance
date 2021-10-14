@@ -7,6 +7,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Sales\Model\Order;
 use SM\Performance\Helper\RealtimeManager;
 use SM\Sales\Repositories\OrderManagement;
+use SM\Shipping\Model\Carrier\RetailStorePickUp;
 
 class AfterCancelOrder implements ObserverInterface
 {
@@ -43,10 +44,14 @@ class AfterCancelOrder implements ObserverInterface
     {
         /** @var Order $order */
         $order = $observer->getData('order');
+        $shippingMethod = $order->getData('shipping_method');
+        $storePickupMethods = [
+            RetailStorePickUp::METHOD,
+            'mageworxpickup_mageworxpickup'
+        ];
 
         if ($order->getData('retail_id') ||
-            $order->getData('shipping_method') === 'smstorepickup_smstorepickup' ||
-            $order->getData('shipping_method') === 'mageworxpickup_mageworxpickup' ||
+            in_array($shippingMethod, $storePickupMethods, true) ||
             $order->getData('is_pwa') === 1) {
 
             if ($order instanceof \Magento\Sales\Model\Order) {

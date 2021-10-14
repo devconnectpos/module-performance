@@ -16,6 +16,7 @@ use SM\Performance\Helper\RealtimeManager;
 use SM\Sales\Repositories\OrderManagement;
 use Magento\Sales\Model\ResourceModel\Order as OrderResource;
 use Magento\Sales\Model\Order;
+use SM\Shipping\Model\Carrier\RetailStorePickUp;
 
 /**
  * Class ModelAfterSave
@@ -24,6 +25,24 @@ use Magento\Sales\Model\Order;
  */
 class ModelAfterSave implements ObserverInterface
 {
+    const STORE_PICKUP_STATUSES
+        = [
+            OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING,
+            OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_PICKING_IN_PROGRESS,
+            OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION,
+
+            OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING,
+            OrderManagement::RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS,
+            OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION,
+
+            OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING,
+            OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS,
+            OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION,
+
+            OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_PICKING,
+            OrderManagement::RETAIL_ORDER_EXCHANGE_PICKING_IN_PROGRESS,
+            OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION,
+        ];
 
     /**
      * @var \Magento\Bundle\Model\Product\Type
@@ -66,8 +85,6 @@ class ModelAfterSave implements ObserverInterface
      * @var OrderResource
      */
     private $orderResource;
-
-    protected $currentOrderRetailStatus = 0;
 
     public static $SUPPORT_CHECK_REALTIME_API = false;
 
@@ -115,6 +132,7 @@ class ModelAfterSave implements ObserverInterface
                 $object->getId(),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -124,6 +142,7 @@ class ModelAfterSave implements ObserverInterface
                 $object->getId(),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -134,6 +153,7 @@ class ModelAfterSave implements ObserverInterface
                 $observer->getData('category_id'),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -143,6 +163,7 @@ class ModelAfterSave implements ObserverInterface
                 $object->getData('customer_group_id'),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -175,6 +196,7 @@ class ModelAfterSave implements ObserverInterface
                 join(",", array_unique($ids)),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -184,6 +206,7 @@ class ModelAfterSave implements ObserverInterface
                 $object->getProduct()->getId(),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
@@ -196,17 +219,12 @@ class ModelAfterSave implements ObserverInterface
                 $object->getData('product_id'),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
+
             return;
         }
 
         if ($object instanceof \Magento\Sales\Model\Order) {
             $this->updateOrderRetailStatus($object);
-
-            // Since order retail status number increases base on workflow, the later status should always be set to the order
-            // This is the fix to try to resolve module conflicts when other modules also trigger order saving but retail old order info, which lead to wrong retail status
-            if ($this->currentOrderRetailStatus > 0 && $this->currentOrderRetailStatus > (int)$object->getData('retail_status')) {
-                $this->setRetailStatusToOrder($object, $this->currentOrderRetailStatus);
-            }
 
             return;
         }
@@ -215,10 +233,6 @@ class ModelAfterSave implements ObserverInterface
             $order = $object->getOrder();
             if ($order->getId()) {
                 $this->updateOrderRetailStatus($order);
-
-                if ($this->currentOrderRetailStatus > 0 && $this->currentOrderRetailStatus > (int)$order->getData('retail_status')) {
-                    $this->setRetailStatusToOrder($order, $this->currentOrderRetailStatus);
-                }
             }
         }
     }
@@ -272,6 +286,16 @@ class ModelAfterSave implements ObserverInterface
     public function updateOrderRetailStatus(Order $order)
     {
         if (!$order->getData('retail_id')) {
+            if ($order->getShippingMethod() === RetailStorePickUp::METHOD) {
+                if (is_null($order->getData('retail_status'))) {
+                    $this->initRetailStatusForOnlinePickupOrder($order);
+
+                    return;
+                }
+
+                $this->updateRetailStatusForOnlinePickupOrder($order);
+            }
+
             return;
         }
 
@@ -302,14 +326,98 @@ class ModelAfterSave implements ObserverInterface
     /**
      * @param Order $order
      *
+     * @throws \Exceptionupdate
+     */
+    public function initRetailStatusForOnlinePickupOrder(Order $order)
+    {
+        if ($order->canCreditmemo() && $order->hasCreditmemos() && $order->canShip()) {
+            $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING);
+
+            return;
+        }
+
+        if ($order->canShip()) {
+            if ($order->canInvoice()) {
+                $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING);
+
+                return;
+            }
+
+            $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING);
+
+            return;
+        }
+
+        if ($order->canInvoice()) {
+            $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED);
+
+            return;
+        }
+
+        $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED);
+    }
+
+    public function updateRetailStatusForOnlinePickupOrder(Order $order)
+    {
+        $retailStatus = (int)$order->getData('retail_status');
+
+        // Only process pick up statuses
+        if (!in_array($retailStatus, self::STORE_PICKUP_STATUSES, true)) {
+            return;
+        }
+
+        switch ($retailStatus) {
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION:
+                if (!$order->canShip()) {
+                    if (!$order->canInvoice()) {
+                        $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED);
+
+                        return;
+                    }
+
+                    $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED);
+
+                    return;
+                }
+
+                // Can ship
+                if (!$order->canInvoice()) {
+                    $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING);
+                }
+
+                return;
+            case OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION:
+                if (!$order->canShip()) {
+                    $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED);
+                }
+
+                return;
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION:
+                if (!$order->canCreditmemo()) {
+                    $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                }
+
+                return;
+        }
+    }
+
+    /**
+     * @param Order $order
+     *
      * @return Order
      * @throws \Exception
      */
     public function updateRetailStatusForOrderRefunded(Order $order)
     {
         if ($order->getData('retail_has_shipment')) { //order has shipment
-            if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
-                return $order;
+            if ($order->getShippingMethod() === RetailStorePickUp::METHOD) {
+                return $this->updateRetailStatusStorePickupForOrderRefunded($order);
             }
 
             if ($order->hasShipments()) {
@@ -355,11 +463,34 @@ class ModelAfterSave implements ObserverInterface
      * @return Order
      * @throws \Exception
      */
+    private function updateRetailStatusStorePickupForOrderRefunded(Order $order)
+    {
+        $retailStatus = $order->getData('retail_status');
+        if (!is_null($retailStatus) && in_array($retailStatus, self::STORE_PICKUP_STATUSES, false)) {
+            return $order;
+        }
+
+        if ($order->canShip()) {
+            return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING);
+        }
+
+        if ($order->canCreditmemo()) {
+            return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED);
+        }
+
+        return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+    }
+
+    /**
+     * @param Order $order
+     *
+     * @return Order
+     * @throws \Exception
+     */
     public function updateRetailStatusForOrderHasShipment(Order $order)
     {
-        //ignore orders click and collect which were not invoiced
-        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
-            return $order;
+        if ($order->getShippingMethod() === RetailStorePickUp::METHOD) {
+            return $this->updateRetailStatusStorePickupForOrderHasShipment($order);
         }
 
         $isInvoiced = !$order->canInvoice() && $order->hasInvoices();
@@ -387,6 +518,34 @@ class ModelAfterSave implements ObserverInterface
         }
 
         return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_NOT_SHIPPED);
+    }
+
+    /**
+     * @param Order $order
+     *
+     * @return Order
+     * @throws \Exception
+     */
+    public function updateRetailStatusStorePickupForOrderHasShipment(Order $order)
+    {
+        $retailStatus = $order->getData('retail_status');
+        if (!is_null($retailStatus) && in_array($retailStatus, self::STORE_PICKUP_STATUSES, false)) {
+            return $order;
+        }
+
+        if ($order->canInvoice()) {
+            if ($order->canShip()) {
+                return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING);
+            }
+
+            return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED);
+        }
+
+        if ($order->canShip()) {
+            return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING);
+        }
+
+        return $this->setRetailStatusToOrder($order, OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED);
     }
 
     /**
@@ -425,11 +584,6 @@ class ModelAfterSave implements ObserverInterface
         }
 
         $order->setData('retail_status', $retailStatus);
-
-        if ($this->currentOrderRetailStatus <= (int)$retailStatus) {
-            $this->currentOrderRetailStatus = $retailStatus;
-        }
-
         $this->orderResource->saveAttribute($order, 'retail_status');
 
         return $order;
