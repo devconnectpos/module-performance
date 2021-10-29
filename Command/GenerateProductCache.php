@@ -51,10 +51,11 @@ class GenerateProductCache extends Command
             }, [$output, $start]
             );
         } catch (\Throwable $e) {
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to generate product cache');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to generate product cache');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
         }
     }
 
