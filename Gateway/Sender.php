@@ -64,23 +64,38 @@ class Sender
     protected $baseUrl;
 
     /**
+     * @var \Magento\Framework\HTTP\Client\Curl
+     */
+    protected $curl;
+
+    /**
+     * @var \Magento\Framework\Serialize\Serializer\Json
+     */
+    protected $json;
+
+    /**
      * RealtimeManager constructor.
      *
      * @param \Magento\Store\Model\StoreManagerInterface         $storeManagement
      * @param \Psr\Log\LoggerInterface                           $logger
      * @param \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
      * @param \Magento\Framework\Encryption\EncryptorInterface   $encryptor
+     * @param \Magento\Framework\HTTP\Client\Curl                $curl
      */
     public function __construct(
         StoreManagerInterface $storeManagement,
         LoggerInterface $logger,
         ScopeConfigInterface $scopeConfig,
-        EncryptorInterface $encryptor
+        EncryptorInterface $encryptor,
+        \Magento\Framework\HTTP\Client\Curl $curl,
+        \Magento\Framework\Serialize\Serializer\Json $json
     ) {
         $this->encryptor = $encryptor;
         $this->scopeConfig = $scopeConfig;
         $this->logger = $logger;
         $this->storeManagement = $storeManagement;
+        $this->curl = $curl;
+        $this->json = $json;
     }
 
     /**
@@ -93,22 +108,26 @@ class Sender
         if (is_null($this->licenseKey)) {
             $this->licenseKey = $this->encryptor->decrypt($this->scopeConfig->getValue(self::LICENSE_KEY_CONFIG_PATH));
         }
+
         if (is_null($this->baseUrl)) {
             $this->baseUrl = $this->getRealtimeUrl();
         }
-        if (!!$this->licenseKey && !!$this->baseUrl) {
-            $baseUrl = $this->getRealtimeUrl();
-            $param = [
-                'license'    => $this->licenseKey,
-                'base_url'   => $baseUrl,
-                'data'       => [
-                    'entity'      => $entity,
-                    'entity_id'   => $entityId,
-                    'type_change' => $typeChange,
-                ],
-                'cache_time' => intval(microtime(true) * 1000),
-                'created_at' => date("Y-m-d H:i:s"),
-            ];
+
+        if (!empty($this->licenseKey) && !empty($this->baseUrl)) {
+            foreach ($this->baseUrl as $realtimeUrl) {
+                $param = [
+                    'license'    => $this->licenseKey,
+                    'base_url'   => $realtimeUrl,
+                    'data'       => [
+                        'entity'      => $entity,
+                        'entity_id'   => $entityId,
+                        'type_change' => $typeChange,
+                    ],
+                    'cache_time' => intval(microtime(true) * 1000),
+                    'created_at' => date("Y-m-d H:i:s"),
+                ];
+            }
+
             $this->sendPostViaSocket($this->getBaseUrl(), $param);
         }
     }
@@ -117,6 +136,7 @@ class Sender
      * @param $data
      *
      * @return bool
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function sendMessages($data)
     {
@@ -127,26 +147,31 @@ class Sender
             $this->baseUrl = $this->getRealtimeUrl();
         }
         $checkExisted = [];
-        if (!!$this->licenseKey && !!$this->baseUrl) {
+        if (!empty($this->licenseKey) && !empty($this->baseUrl)) {
             $batch = [];
+
             foreach ($data as $datum) {
                 $checkKey = $datum['entity'].'_'.$datum['entity_id'].'_'.$datum['type_change'];
+
                 if (in_array($checkKey, $checkExisted, true)) {
                     continue;
                 }
 
-                $param = [
-                    'license'    => $this->licenseKey,
-                    'base_url'   => $this->baseUrl,
-                    'data'       => [
-                        'entity'      => $datum['entity'],
-                        'entity_id'   => $datum['entity_id'],
-                        'type_change' => $datum['type_change'],
-                    ],
-                    'cache_time' => CacheKeeper::getCacheTime(),
-                    'created_at' => date("Y-m-d H:i:s"),
-                ];
-                $batch[] = $param;
+                foreach ($this->baseUrl as $realtimeUrl) {
+                    $param = [
+                        'license'    => $this->licenseKey,
+                        'base_url'   => $realtimeUrl,
+                        'data'       => [
+                            'entity'      => $datum['entity'],
+                            'entity_id'   => $datum['entity_id'],
+                            'type_change' => $datum['type_change'],
+                        ],
+                        'cache_time' => CacheKeeper::getCacheTime(),
+                        'created_at' => date("Y-m-d H:i:s"),
+                    ];
+                    $batch[] = $param;
+                }
+
                 $checkExisted[] = $checkKey;
             }
 
@@ -170,30 +195,35 @@ class Sender
             $this->baseUrl = $this->getRealtimeUrl();
         }
         $checkExisted = [];
-        if (!!$this->licenseKey && !!$this->baseUrl) {
+        if (!empty($this->licenseKey) && !empty($this->baseUrl)) {
             $batch = [];
+
             foreach ($data as $datum) {
                 $checkKey = $datum['entity'].'_'.$datum['entity_id'].'_'.$datum['type_change'];
+
                 if (in_array($checkKey, $checkExisted, true)) {
                     continue;
                 }
 
-                $param = [
-                    'license'    => $this->licenseKey,
-                    'base_url'   => $this->baseUrl,
-                    'data'       => [
-                        'entity'      => $datum['entity'],
-                        'entity_id'   => $datum['entity_id'],
-                        'type_change' => $datum['type_change'],
-                    ],
-                    'cache_time' => CacheKeeper::getCacheTime(),
-                    'created_at' => date("Y-m-d H:i:s"),
-                ];
-                $batch[] = $param;
+                foreach ($this->baseUrl as $realtimeUrl) {
+                    $param = [
+                        'license'    => $this->licenseKey,
+                        'base_url'   => $realtimeUrl,
+                        'data'       => [
+                            'entity'      => $datum['entity'],
+                            'entity_id'   => $datum['entity_id'],
+                            'type_change' => $datum['type_change'],
+                        ],
+                        'cache_time' => CacheKeeper::getCacheTime(),
+                        'created_at' => date("Y-m-d H:i:s"),
+                    ];
+                    $batch[] = $param;
+                }
+
                 $checkExisted[] = $checkKey;
             }
 
-            return $this->getBaseUrl().' '.$this->licenseKey.' '.json_encode(["batch" => $batch]);
+            return $this->getBaseUrl().' '.$this->licenseKey.' '.$this->json->serialize(["batch" => $batch]);
         }
 
         return null;
@@ -203,39 +233,34 @@ class Sender
      * @param $url
      * @param $params
      *
-     * @return bool
+     * @return mixed
      */
     public function sendPostViaSocket($url, $params)
     {
-        $content = json_encode($params);
+        try {
+            $content = $this->json->serialize($params);
 
-        $curl = curl_init($url);
-        curl_setopt($curl, CURLOPT_HEADER, false);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt(
-            $curl,
-            CURLOPT_HTTPHEADER,
-            ["Content-type: application/json"]
-        );
-        curl_setopt($curl, CURLOPT_POST, true);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $content);
+            $this->curl->setOption(CURLOPT_HEADER, false);
+            $this->curl->setOption(CURLOPT_RETURNTRANSFER, true);
+            $this->curl->setOption(CURLOPT_POST, true);
+            $this->curl->setOption(CURLOPT_POSTFIELDS, $content);
+            $this->curl->addHeader("Content-Type", "application/json");
 
-        $json_response = curl_exec($curl);
+            $this->curl->post($url, $params);
+            $jsonResponse = $this->curl->getBody();
 
-        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $status = $this->curl->getStatus();
 
-        if ($status != 200) {
-            $this->logger->debug(
-                "Error: call to URL $url failed with status $status, response $json_response, curl_error "
-                .curl_error($curl)
-                .", curl_errno "
-                .curl_errno($curl)
-            );
+            if ($status !== 200) {
+                $this->logger->debug("====> [CPOS] Error: Call to URL $url failed with status $status, response $jsonResponse");
+            }
+
+            return $this->json->unserialize($jsonResponse);
+        } catch (\Throwable $e) {
+            $this->logger->debug("====> [CPOS] Error sending message to socket: {$e->getMessage()}");
         }
 
-        curl_close($curl);
-
-        return json_decode($json_response, true, 512);
+        return [];
     }
 
     protected function getBaseUrl()
@@ -247,14 +272,27 @@ class Sender
 
     /**
      * @return mixed
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function getRealtimeUrl()
     {
-        $realtimeUrl = $this->scopeConfig->getValue(self::REALTIME_URL_CONFIG_PATH);
-        if ($realtimeUrl && filter_var($realtimeUrl, FILTER_VALIDATE_URL)) {
-            return $realtimeUrl;
+        // Support for multiple realtime URLs
+        $realtimeUrls = $this->scopeConfig->getValue(self::REALTIME_URL_CONFIG_PATH);
+
+        if (!empty($realtimeUrls)) {
+            $splitUrls = explode(",", $realtimeUrls);
+            $results = [];
+
+            foreach ($splitUrls as $url) {
+                if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+                    continue;
+                }
+                $results[] = $url;
+            }
+
+            return $results;
         }
 
-        return $this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true);
+        return [$this->storeManagement->getStore()->getBaseUrl(UrlInterface::URL_TYPE_LINK, true)];
     }
 }

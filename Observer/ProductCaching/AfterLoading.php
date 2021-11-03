@@ -37,20 +37,28 @@ class AfterLoading implements ObserverInterface
     private $request;
 
     /**
+     * @var \Magento\Framework\DB\TransactionFactory
+     */
+    private $transactionFactory;
+
+    /**
      * AfterLoading constructor.
      *
      * @param \SM\Performance\Helper\CacheKeeper        $cacheKeeper
      * @param \Magento\Framework\ObjectManagerInterface $objectManager
      * @param RequestInterface                          $request
+     * @param \Magento\Framework\DB\TransactionFactory  $transactionFactory
      */
     public function __construct(
         CacheKeeper $cacheKeeper,
         ObjectManagerInterface $objectManager,
-        RequestInterface $request
+        RequestInterface $request,
+        \Magento\Framework\DB\TransactionFactory $transactionFactory
     ) {
         $this->cacheKeeper = $cacheKeeper;
         $this->objectManager = $objectManager;
         $this->request = $request;
+        $this->transactionFactory = $transactionFactory;
     }
 
     /**
@@ -90,24 +98,29 @@ class AfterLoading implements ObserverInterface
         $this->cacheKeeper->getInstance($storeId, $warehouseId);
         $cacheInfo = $this->cacheKeeper->getCacheInstanceInfo($storeId, $warehouseId);
 
+        if (!$cacheInfo) {
+            return;
+        }
+
+        $logger = $this->objectManager->get('Psr\Log\LoggerInterface');
+
         if ($loadingData->getData(CacheKeeper::$IS_PULL_FROM_CACHE) !== true) {
             /** @var \SM\Core\Api\Data\XProduct[] $items */
             $items = $loadingData->getData('items');
+            $saveTransaction = $this->transactionFactory->create();
 
             foreach ($items as $item) {
-                if ($loadingData->getData(CacheKeeper::$IS_REALTIME)) {
-                    $randomSeconds = random_int(0, 5);
-                    if ($randomSeconds > 0) {
-                        sleep($randomSeconds);
-                    }
-                }
                 $cacheInstance = $this->cacheKeeper->getInstance($storeId, $warehouseId);
-                try {
-                    $cacheInstance->setData('id', $item->getId())
-                        ->setData('data', json_encode($item->getData()))
-                        ->save();
-                } catch (Exception $e) {
-                }
+                $cacheInstance->setData('id', $item->getId())
+                    ->setData('data', json_encode($item->getData()));
+                $saveTransaction->addObject($cacheInstance);
+            }
+
+            try {
+                $saveTransaction->save();
+            } catch (\Throwable $e) {
+                $logger->info("====> [CPOS] Failed save product cache: {$e->getMessage()}");
+                $logger->info($e->getTraceAsString());
             }
         }
 
@@ -119,6 +132,11 @@ class AfterLoading implements ObserverInterface
             $cacheInfo->setData('is_over', true);
         }
 
-        $cacheInfo->save();
+        try {
+            $cacheInfo->save();
+        } catch (\Throwable $e) {
+            $logger->info("====> [CPOS] Failed save cache info: {$e->getMessage()}");
+            $logger->info($e->getTraceAsString());
+        }
     }
 }

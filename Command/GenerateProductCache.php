@@ -53,8 +53,8 @@ class GenerateProductCache extends Command
         } catch (\Throwable $e) {
             $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
             $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to generate product cache');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $logger->critical("====> [CPOS] Failed to generate product cache: {$e->getMessage()}");
+            $logger->critical($e->getTraceAsString());
         }
     }
 

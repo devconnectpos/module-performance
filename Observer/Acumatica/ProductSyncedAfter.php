@@ -23,22 +23,22 @@ class ProductSyncedAfter implements ObserverInterface
      * @var ProductFactory
      */
     protected $productFactory;
-    
+
     /**
      * @var RealtimeManager
      */
     private $realtimeManager;
-    
+
     /**
      * @var ModelAfterSave
      */
     private $modelAfterSave;
-    
+
     /**
      * @var ProductModel
      */
     private $productModel;
-    
+
     /**
      * ProductSyncedAfter constructor.
      * @param ProductFactory $productFactory
@@ -57,7 +57,7 @@ class ProductSyncedAfter implements ObserverInterface
         $this->modelAfterSave = $modelAfterSave;
         $this->productModel = $productModel;
     }
-    
+
     /**
      * @param Observer $observer
      * @throws Exception
@@ -68,17 +68,17 @@ class ProductSyncedAfter implements ObserverInterface
         if ($productData === null) {
             return;
         }
-        
+
         $product = $this->productFactory->create()->load($productData->getProductId());
         $productId = $product->getId();
         if (!$productId) {
             return;
         }
-        
+
         $ids = [];
         $ids[] = $productId;
         $productType = $product->getTypeId();
-        
+
         if ($productType === 'configurable') {
             /** @var Configurable $instanceType */
             $instanceType = $product->getTypeInstance();
@@ -95,19 +95,19 @@ class ProductSyncedAfter implements ObserverInterface
                 $this->modelAfterSave->getConfigurableParentIds($productId)
             );
         }
-        
+
         $this->createSourceItem($ids);
         $idString = implode(',', array_unique($ids));
-    
+
         $this->logActivity('Init Sync Products: ' . $idString);
-        
+
         $this->realtimeManager->trigger(
             RealtimeManager::PRODUCT_ENTITY,
             $idString,
             RealtimeManager::TYPE_CHANGE_UPDATE
         );
     }
-    
+
     /**
      * @param array $ids
      */
@@ -115,14 +115,14 @@ class ProductSyncedAfter implements ObserverInterface
     {
         $connection = $this->productModel->getConnection();
         $inventorySourceTable = $this->productModel->getTable('inventory_source_item');
-        
+
         foreach ($ids as $id) {
             $product = $this->productFactory->create()->load($id);
             $query = $connection->select()->from($inventorySourceTable)->where('sku = ?', $product->getSku());
             if ((int) $connection->fetchOne($query) !== 0) {
                 continue;
             }
-            
+
             $result = $connection->insert(
                 $inventorySourceTable,
                 ['source_code' => 'default', 'sku' => $product->getSku(), 'quantity' => 0, 'status' => 1]
@@ -132,15 +132,14 @@ class ProductSyncedAfter implements ObserverInterface
             }
         }
     }
-    
+
     /**
      * @param string $message
      */
     public function logActivity($message)
     {
-        $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/SM/ProductAcumaticaSync.log');
-        $logger = new \Zend\Log\Logger();
-        $logger->addWriter($writer);
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $logger = $objectManager->get('Psr\Log\LoggerInterface');
         $logger->info($message);
     }
 }
