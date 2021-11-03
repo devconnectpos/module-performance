@@ -45,20 +45,14 @@ class SendRealtime extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos_realtime.log');
-        $logger = new \Zend\Log\Logger();
-        $logger->addWriter($writer);
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $logger = $objectManager->get('Psr\Log\LoggerInterface');
 
         try {
-            $randomSeconds = random_int(0, 5);
-            if ($randomSeconds > 0) {
-                $output->writeln("<info>Delayed realtime execution by {$randomSeconds} seconds</info>");
-                sleep($randomSeconds);
-            }
             $this->appState->emulateAreaCode(Area::AREA_ADMINHTML, function (InputInterface $input, OutputInterface $output){
                 $data = $input->getArgument('data');
                 if (is_string($data)) {
-                    $data = json_decode($data, true, 512);
+                    $data = json_decode($data, true);
                     if (is_array($data)) {
                         $res = $this->realtimeManager->getSenderInstance()->sendMessages($data);
                         $output->writeln('<info>' .json_encode($res). '</info>');
@@ -70,8 +64,8 @@ class SendRealtime extends Command
                 }
             }, [$input, $output]);
         } catch (\Throwable $e) {
-            $logger->info('====> Failed to send realtime');
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info("====> [CPOS] Failed to send realtime: {$e->getMessage()}");
+            $logger->info($e->getTraceAsString());
         }
     }
 }
