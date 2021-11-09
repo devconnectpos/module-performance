@@ -78,12 +78,12 @@ class CacheKeeper
      * CacheKeeper constructor.
      *
      * @param \SM\Performance\Model\ResourceModel\ProductCacheInstance\CollectionFactory $productCacheInstanceCollectionFactory
-     * @param \SM\Performance\Model\ProductCacheInstanceFactory $productCacheInstanceFactory
-     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-     * @param \SM\Performance\Model\IzProductFactory $izProductFactory
-     * @param \Magento\Framework\App\ResourceConnection $resource
-     * @param ProductManagement $productManagement
-     * @param OutletCollectionFactory $outletCollectionFactory
+     * @param \SM\Performance\Model\ProductCacheInstanceFactory                          $productCacheInstanceFactory
+     * @param \Magento\Store\Model\StoreManagerInterface                                 $storeManager
+     * @param \SM\Performance\Model\IzProductFactory                                     $izProductFactory
+     * @param \Magento\Framework\App\ResourceConnection                                  $resource
+     * @param ProductManagement                                                          $productManagement
+     * @param OutletCollectionFactory                                                    $outletCollectionFactory
      */
     public function __construct(
         CollectionFactory $productCacheInstanceCollectionFactory,
@@ -121,11 +121,11 @@ class CacheKeeper
             $this->buildTable($storeId, $warehouseId);
             $_m = $this->getProductCacheInstanceModel();
             $_m->setData('is_over', 0)
-               ->setData('store_id', $storeId)
-               ->save();
+                ->setData('store_id', $storeId)
+                ->save();
             if (!empty($warehouseId)) {
                 $_m->setData('warehouse_id', $warehouseId)
-                   ->save();
+                    ->save();
             }
         }
 
@@ -163,7 +163,8 @@ class CacheKeeper
 
             if ($instanceInfo->getId()) {
                 if (!$this->connection->isTableExists($this->getTableName($storeId, $warehouseId))) {
-                    throw new Exception("Cannot find iz product cache table in the database. Please flush all caches");
+                    //throw new Exception("Cannot find product cache table in the database. Please navigate to Setting > Advanced > Magento Cache and delete all caches then try again.");
+                    return $this->cachedInstance[$cacheKey];
                 }
                 $this->cachedInstance[$cacheKey] = $instanceInfo;
             } else {
@@ -200,7 +201,7 @@ class CacheKeeper
         return array_reduce(
             $arrayKey,
             function ($carry, $item) {
-                $carry .= $item . "|";
+                $carry .= $item."|";
 
                 return $carry;
             },
@@ -275,7 +276,7 @@ class CacheKeeper
      */
     protected function getTableName($storeId, $warehouseId = null)
     {
-        return $this->resource->getTableName('iz_product_' . $storeId . '_' . $warehouseId);
+        return $this->resource->getTableName('iz_product_'.$storeId.'_'.$warehouseId);
     }
 
     public function deleteEntity($ids)
@@ -286,12 +287,11 @@ class CacheKeeper
             WarehouseIntegrateManagement::setOutletId($cacheInstanceInfo->getData('outlet_id'));
             try {
                 $this->getIzProductModel()
-                     ->getCollection()
-                     ->addFieldToFilter('id', ['in' => explode(",", $ids)])
-                     ->walk('delete');
+                    ->getCollection()
+                    ->addFieldToFilter('id', ['in' => explode(",", $ids)])
+                    ->walk('delete');
             } catch (Exception $e) {
             }
-
         }
     }
 
@@ -327,7 +327,7 @@ class CacheKeeper
         $cacheInfo = $this->getCacheInstanceInfo($storeId, $warehouseId);
 
         foreach ($productCollection as $product) {
-            $xProduct =  $this->productManagement->processXProduct(
+            $xProduct = $this->productManagement->processXProduct(
                 $product,
                 $storeId,
                 $warehouseId
@@ -336,12 +336,11 @@ class CacheKeeper
             $cacheInstance->setData('id', $xProduct->getId())
                 ->setData('data', json_encode($xProduct->getData()))
                 ->save();
-
         }
 
         $cacheInfo->setData('cache_time', CacheKeeper::getCacheTime());
         $cacheInfo->setData('page_size', 50);
-        $cacheInfo->setData('current_page', (int) $productCollection->getSize() / 50 + 1);
+        $cacheInfo->setData('current_page', (int)$productCollection->getSize() / 50 + 1);
         $cacheInfo->setData('is_over', true);
         $cacheInfo->save();
 
@@ -355,6 +354,7 @@ class CacheKeeper
         $connection = $cacheModel->getResource()->getConnection();
         $tableName = $cacheModel->getResource()->getMainTable();
         $connection->truncateTable($tableName);
+
         return $this;
     }
 
@@ -365,6 +365,7 @@ class CacheKeeper
             ->addFieldToSelect('warehouse_id')
             ->addFieldToFilter('is_active', ['eq' => 1]);
         $collection->getSelect()->group(['main_table.store_id', 'main_table.warehouse_id']);
+
         return $collection;
     }
 }
