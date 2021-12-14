@@ -23,7 +23,6 @@ use SM\Performance\Gateway\Sender;
  */
 class RealtimeManager
 {
-
     public static $CAN_SEND_REAL_TIME = true;
     public static $USE_ASYNC = true;
 
@@ -125,9 +124,14 @@ class RealtimeManager
         if (!self::$useBatch) {
             // realtime from server magento to connectpos
             $config = $this->configLoader->getConfigByPath('xpos/advance', 'default', 0);
-            if (isset($config['xpos/advance/sync_realtime'])
-                && $config['xpos/advance/sync_realtime']['value'] === 'cronjob'
-            ) {
+            $realtimeConfig = isset($config['xpos/advance/sync_realtime']) ? $config['xpos/advance/sync_realtime']['value'] : '';
+
+            // When it is a manual mode of entities other than product
+            $manualModeNotProduct = ($realtimeConfig === 'manual' && $entity !== RealtimeManager::PRODUCT_ENTITY);
+            // When it is a manual mode of product but it is not product update (e.g. new or delete action)
+            $manualModeProductNotUpdate = ($realtimeConfig === 'manual' && $entity === RealtimeManager::PRODUCT_ENTITY && $typeChange !== RealtimeManager::TYPE_CHANGE_UPDATE);
+
+            if ($realtimeConfig === 'cronjob') {
                 $dataRealtime = [
                     [
                         'entity'      => $entity,
@@ -140,7 +144,8 @@ class RealtimeManager
                 } else {
                     self::$senderInstance->sendMessages($dataRealtime);
                 }
-            } else {
+            } elseif ($realtimeConfig === 'immediately' || $manualModeNotProduct || $manualModeProductNotUpdate) {
+                // MANUAL TRIGGER ONLY APPLIES FOR PRODUCT ENTITY!
                 // if php exec is enable
                 if (function_exists('exec')) {
                     $this->process
@@ -167,8 +172,47 @@ class RealtimeManager
                 }
             }
         } else {
-            // realtime from connectpos to server magento
+            // realtime from connectpos to magento server
             $this->pushToBatch($entity, $entityId, $typeChange);
+        }
+    }
+
+    /**
+     * @param $entity
+     * @param $entityId
+     * @param $typeChange
+     *
+     * @throws \Exception
+     */
+    public function triggerForce($entity, $entityId, $typeChange)
+    {
+        if (is_null(self::$senderInstance)) {
+            self::$senderInstance = $this->objectManager->create(Sender::class);
+        }
+
+        // if php exec is enable
+        if (function_exists('exec')) {
+            $this->process
+                ->setCommand(
+                    "bin/magento cpos:sendrealtime "."'".json_encode([
+                        [
+                            'entity'      => $entity,
+                            'entity_id'   => $entityId,
+                            'type_change' => $typeChange,
+                        ],
+                    ])."'"
+                )
+                ->start();
+        } else {
+            $dataRealtime = [
+                [
+                    'entity'      => $entity,
+                    'entity_id'   => $entityId,
+                    'type_change' => $typeChange,
+                ],
+            ];
+
+            self::$senderInstance->sendMessages($dataRealtime);
         }
     }
 
