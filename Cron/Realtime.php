@@ -5,55 +5,65 @@
  * Date: 04/06/2018
  * Time: 15:27
  */
+
 namespace SM\Performance\Cron;
 
 use SM\Performance\Helper\RealtimeManager;
-use SM\Performance\Model\RealtimeStorageFactory;
-use SM\XRetail\Helper\Data;
+use Magento\Framework\Serialize\Serializer\Json;
+use SM\Performance\Model\ResourceModel\RealtimeStorage\CollectionFactory as RealtimeCollectionFactory;
 
 class Realtime
 {
     /**
      * @var \SM\Performance\Helper\RealtimeManager
      */
-    private $realtimeManager;
+    protected $realtimeManager;
 
     /**
-     * @var \SM\Performance\Model\RealtimeStorageFactory
+     * @var RealtimeCollectionFactory
      */
-    protected $realtimeStorageFactory;
+    protected $realtimeCollectionFactory;
+
+    /**
+     * @var Json
+     */
+    protected $jsonSerializer;
 
     public function __construct(
-        Data $dataHelper,
         RealtimeManager $realtimeManager,
-        RealtimeStorageFactory $realtimeStorageFactory
+        RealtimeCollectionFactory $realtimeCollectionFactory,
+        Json $jsonSerializer
     ) {
-        $this->dataHelper           = $dataHelper;
-        $this->realtimeManager      = $realtimeManager;
-        $this->realtimeStorageFactory  = $realtimeStorageFactory;
+        $this->realtimeManager = $realtimeManager;
+        $this->realtimeCollectionFactory = $realtimeCollectionFactory;
+        $this->jsonSerializer = $jsonSerializer;
     }
 
     /**
      * cronjob realtime storege
      *
      * @return void
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
-
     public function execute()
     {
-        $realtimeModel  = $this->realtimeStorageFactory->create();
-        $collection     = $realtimeModel->getCollection();
+        $collection = $this->realtimeCollectionFactory->create();
 
         foreach ($collection->getItems() as $item) {
             $data = array();
-            $dataRealtime   = json_decode($item['data_realtime']);
+            $dataRealtime = $this->jsonSerializer->unserialize($item['data_realtime']);
+
             foreach ($dataRealtime as $dt) {
-                $data[]     = (array)$dt;
+                $data[] = (array)$dt;
             }
+
             $this->realtimeManager->getSenderInstance()->sendMessages($data);
 
             //delete record
             $item->delete();
+
+            // Sleep for 1 second before sending the next message
+            usleep(1000000);
         }
     }
 }

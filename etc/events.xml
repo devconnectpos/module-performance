@@ -67,10 +67,10 @@
     </event>
 
     <!-- Acumatica Connector Real Time Event -->
-    <event name="amconnect_stock_item_created_after">
-        <observer name="amconnect_stock_item_create_after" instance="SM\Performance\Observer\Acumatica\ProductSyncedAfter"/>
-    </event>
-    <event name="amconnect_creditmemo_created_after">
-        <observer name="amconnect_credit_memo_create_after" instance="SM\Performance\Observer\Acumatica\CreditMemoSyncedAfter"/>
-    </event>
+<!--    <event name="amconnect_stock_item_created_after">-->
+<!--        <observer name="amconnect_stock_item_create_after" instance="SM\Performance\Observer\Acumatica\ProductSyncedAfter"/>-->
+<!--    </event>-->
+<!--    <event name="amconnect_creditmemo_created_after">-->
+<!--        <observer name="amconnect_credit_memo_create_after" instance="SM\Performance\Observer\Acumatica\CreditMemoSyncedAfter"/>-->
+<!--    </event>-->
 </config>
