@@ -4,13 +4,12 @@ namespace SM\Performance\Controller\Adminhtml\Index;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
-use Magento\Framework\App\Action\HttpPostActionInterface as HttpPostActionInterface;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Ui\Component\MassAction\Filter;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use SM\Performance\Helper\RealtimeManager;
 
-class MassSync extends Action implements HttpPostActionInterface
+class MassSync extends Action
 {
 
     /**
