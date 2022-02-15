@@ -117,6 +117,8 @@ class AfterLoading implements ObserverInterface
             }
 
             try {
+                $delay = random_int(1000000,5000000);
+                usleep($delay);
                 $saveTransaction->save();
             } catch (\Throwable $e) {
                 $logger->info("====> [CPOS] Failed save product cache: {$e->getMessage()}");
