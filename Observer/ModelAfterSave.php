@@ -193,7 +193,7 @@ class ModelAfterSave implements ObserverInterface
             }
             $this->realtimeManager->trigger(
                 RealtimeManager::PRODUCT_ENTITY,
-                join(",", array_unique($ids)),
+                implode(",", array_unique($ids)),
                 RealtimeManager::TYPE_CHANGE_UPDATE
             );
 

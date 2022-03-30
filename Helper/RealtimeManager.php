@@ -147,6 +147,7 @@ class RealtimeManager
             } elseif ($realtimeConfig === 'immediately' || $manualModeNotProduct || $manualModeProductNotUpdate) {
                 // MANUAL TRIGGER ONLY APPLIES FOR PRODUCT ENTITY!
                 // if php exec is enable
+                usleep(random_int(500, 5000)); // Delay execution, potentially prevent database overload
                 if (function_exists('exec')) {
                     $this->process
                         ->setCommand(
