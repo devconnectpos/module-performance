@@ -15,6 +15,7 @@ use SM\Performance\Model\RealtimeStorageFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Model\Shell\Process;
 use SM\Performance\Gateway\Sender;
+use SM\Core\Logger\Logger as CposLogger;
 
 /**
  * Class RealtimeManager
@@ -80,6 +81,11 @@ class RealtimeManager
     private $logger;
 
     /**
+     * @var CposLogger
+     */
+    private $cposLogger;
+
+    /**
      * RealtimeManager constructor.
      *
      * @param \Magento\Framework\ObjectManagerInterface    $objectManager
@@ -88,6 +94,7 @@ class RealtimeManager
      * @param \SM\Performance\Model\RealtimeStorageFactory $realtimeStorageFactory
      * @param \Magento\Config\Model\Config\Loader          $loader
      * @param \Psr\Log\LoggerInterface                     $logger
+     * @param CposLogger                                   $cposLogger
      */
     public function __construct(
         ObjectManagerInterface $objectManager,
@@ -95,7 +102,8 @@ class RealtimeManager
         Data $retailHelper,
         RealtimeStorageFactory $realtimeStorageFactory,
         Loader $loader,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        CposLogger $cposLogger
     ) {
         $this->objectManager = $objectManager;
         $this->process = $process;
@@ -103,6 +111,7 @@ class RealtimeManager
         $this->logger = $logger;
         $this->configLoader = $loader;
         $this->realtimeStorageFactory = $realtimeStorageFactory;
+        $this->cposLogger = $cposLogger;
     }
 
     /**
@@ -130,6 +139,9 @@ class RealtimeManager
             $manualModeNotProduct = ($realtimeConfig === 'manual' && $entity !== RealtimeManager::PRODUCT_ENTITY);
             // When it is a manual mode of product but it is not product update (e.g. new or delete action)
             $manualModeProductNotUpdate = ($realtimeConfig === 'manual' && $entity === RealtimeManager::PRODUCT_ENTITY && $typeChange !== RealtimeManager::TYPE_CHANGE_UPDATE);
+
+            // Log product synchronization
+            $this->cposLogger->info("===> [CPOS] Realtime synchronization for entity ".$entity." with ID ".$entityId." at ".date('Y-m-d H:i:s'));
 
             if ($realtimeConfig === 'cronjob') {
                 $dataRealtime = [
