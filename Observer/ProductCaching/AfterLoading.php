@@ -8,7 +8,9 @@
 namespace SM\Performance\Observer\ProductCaching;
 
 use Exception;
+use Magento\Config\Model\Config\Loader;
 use Magento\Framework\App\RequestInterface;
+use Magento\Framework\DB\TransactionFactory;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\ObjectManagerInterface;
@@ -37,9 +39,14 @@ class AfterLoading implements ObserverInterface
     private $request;
 
     /**
-     * @var \Magento\Framework\DB\TransactionFactory
+     * @var TransactionFactory
      */
     private $transactionFactory;
+
+    /**
+     * @var \Magento\Config\Model\Config\Loader
+     */
+    protected $configLoader;
 
     /**
      * AfterLoading constructor.
@@ -47,18 +54,20 @@ class AfterLoading implements ObserverInterface
      * @param \SM\Performance\Helper\CacheKeeper        $cacheKeeper
      * @param \Magento\Framework\ObjectManagerInterface $objectManager
      * @param RequestInterface                          $request
-     * @param \Magento\Framework\DB\TransactionFactory  $transactionFactory
+     * @param TransactionFactory  $transactionFactory
      */
     public function __construct(
         CacheKeeper $cacheKeeper,
         ObjectManagerInterface $objectManager,
         RequestInterface $request,
-        \Magento\Framework\DB\TransactionFactory $transactionFactory
+        TransactionFactory $transactionFactory,
+        Loader $loader
     ) {
         $this->cacheKeeper = $cacheKeeper;
         $this->objectManager = $objectManager;
         $this->request = $request;
         $this->transactionFactory = $transactionFactory;
+        $this->configLoader = $loader;
     }
 
     /**
@@ -69,7 +78,13 @@ class AfterLoading implements ObserverInterface
      */
     public function execute(Observer $observer)
     {
-        // TODO: Implement execute() method.
+        $config = $this->configLoader->getConfigByPath('xpos/advance', 'default', 0);
+        $realtimeConfig = isset($config['xpos/advance/sync_realtime']) ? $config['xpos/advance/sync_realtime']['value'] : '';
+
+        if ($realtimeConfig === 'no_product_cache') {
+            return;
+        }
+
         $loadingData = $observer->getData('loading_data');
         /** @var \Magento\Framework\DataObject $searchCriteria */
         $searchCriteria = $loadingData->getData('search_criteria');
@@ -117,7 +132,7 @@ class AfterLoading implements ObserverInterface
             }
 
             try {
-                $delay = random_int(1000000,5000000);
+                $delay = random_int(1000000, 5000000);
                 usleep($delay);
                 $saveTransaction->save();
             } catch (\Throwable $e) {

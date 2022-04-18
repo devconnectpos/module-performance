@@ -156,9 +156,9 @@ class RealtimeManager
                 } else {
                     self::$senderInstance->sendMessages($dataRealtime);
                 }
-            } elseif ($realtimeConfig === 'immediately' || $manualModeNotProduct || $manualModeProductNotUpdate) {
+            } elseif ($realtimeConfig === 'immediately' || $realtimeConfig === 'no_product_cache' || $manualModeNotProduct || $manualModeProductNotUpdate) {
                 // MANUAL TRIGGER ONLY APPLIES FOR PRODUCT ENTITY!
-                // if php exec is enable
+                // if php exec is enabled
                 usleep(random_int(500, 5000)); // Delay execution, potentially prevent database overload
                 if (function_exists('exec')) {
                     $this->process
@@ -183,10 +183,9 @@ class RealtimeManager
 
                     self::$senderInstance->sendMessages($dataRealtime);
                 }
+            } else {
+
             }
-        } else {
-            // realtime from connectpos to magento server
-            $this->pushToBatch($entity, $entityId, $typeChange);
         }
     }
 

@@ -72,7 +72,7 @@ class ProcessBatch implements ObserverInterface
 
         if ($realtimeConfig === 'cronjob') {
             $this->realtimeManager->processBatchData();
-        } elseif ($realtimeConfig === 'immediately' || $manualModeNotProduct || $manualModeProductNotUpdate) {
+        } elseif ($realtimeConfig === 'immediately' || $realtimeConfig === 'no_product_cache' || $manualModeNotProduct || $manualModeProductNotUpdate) {
             if (function_exists('exec')) {
                 $this->process
                     ->setCommand("bin/magento cpos:sendrealtime "."'".$this->jsonSerializer->serialize($batchData)."'")
