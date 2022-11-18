@@ -288,7 +288,7 @@ class CacheKeeper
             try {
                 $this->getIzProductModel()
                     ->getCollection()
-                    ->addFieldToFilter('id', ['in' => explode(",", $ids)])
+                    ->addFieldToFilter('id', ['in' => explode(",", (string)$ids)])
                     ->walk('delete');
             } catch (Exception $e) {
             }

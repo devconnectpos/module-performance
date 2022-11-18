@@ -280,7 +280,7 @@ class Sender
         $realtimeUrls = $this->scopeConfig->getValue(self::REALTIME_URL_CONFIG_PATH);
 
         if (!empty($realtimeUrls)) {
-            $splitUrls = explode(",", $realtimeUrls);
+            $splitUrls = explode(",", (string)$realtimeUrls);
             $results = [];
 
             foreach ($splitUrls as $url) {

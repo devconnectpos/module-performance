@@ -1,7 +1,7 @@
 <?php
 $license = $argv[0];
 $baseUrl = $argv[1];
-$params  = $argv[2];
+$params = $argv[2];
 
 sendPostViaSocket($baseUrl, $params);
 
@@ -24,16 +24,17 @@ function sendPostViaSocket($url, $params)
     $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
     if ($status != 200) {
-        $this->logger->debug(
+        \Magento\Framework\App\ObjectManager::getInstance()->get('Psr\Log\LoggerInterface')->debug(
             "Error: call to URL $url failed with status $status, response $json_response, curl_error "
             . curl_error($curl)
             . ", curl_errno "
-            . curl_errno($curl));
+            . curl_errno($curl)
+        );
     }
 
     curl_close($curl);
 
-    return $response = json_decode($json_response, true);
+    return json_decode((string)$json_response, true);
 }
 
 function getBaseUrl()
