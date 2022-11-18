@@ -101,7 +101,7 @@ class BeforeLoading implements ObserverInterface
 
         if ($isRealTime) {
             $loadingData->setData(CacheKeeper::$IS_REALTIME, true);
-            if (!$cacheTime || is_nan($cacheTime)) {
+            if (!$cacheTime || is_nan((float)$cacheTime)) {
                 throw new \Exception("Realtime must have param cache_time and cache time must be number");
             }
 
@@ -125,7 +125,7 @@ class BeforeLoading implements ObserverInterface
                 } else {
                     $ids = $searchCriteria->getData('entity_id');
                 }
-                $collection->addFieldToFilter('id', ['in' => explode(",", $ids)]);
+                $collection->addFieldToFilter('id', ['in' => explode(",", (string)$ids)]);
             }
             $loadingData->setData(CacheKeeper::$IS_PULL_FROM_CACHE, true);
             $loadingData->setData('collection', $collection);
@@ -155,7 +155,7 @@ class BeforeLoading implements ObserverInterface
                 } else {
                     $ids = $searchCriteria->getData('entity_id');
                 }
-                $collection->addFieldToFilter('id', ['in' => explode(",", $ids)]);
+                $collection->addFieldToFilter('id', ['in' => explode(",", (string)$ids)]);
             }
 
             if ($cacheInfo && boolval($cacheInfo->getData('is_over')) === true) {
@@ -186,7 +186,7 @@ class BeforeLoading implements ObserverInterface
     {
         $items = [];
         foreach ($collection as $item) {
-            $itemData = json_decode($item->getData('data'), true);
+            $itemData = json_decode((string)$item->getData('data'), true);
             if (is_array($itemData)) {
                 $xProduct = $this->xProductFactory->create();
                 $xProduct->setData($itemData);
