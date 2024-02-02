@@ -2,7 +2,7 @@
 	"name": "connectpos/module-performance",
 	"description": "N/A",
 	"type": "magento2-module",
-  "version": "23.01.09",
+  "version": "24.02.03",
 	"license": [
 		"proprietary"
 	],
