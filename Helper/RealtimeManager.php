@@ -86,11 +86,6 @@ class RealtimeManager
     private $cposLogger;
 
     /**
-     * @var ObjectManagerInterface
-     */
-    protected $objectManager;
-
-    /**
      * RealtimeManager constructor.
      *
      * @param \Magento\Framework\ObjectManagerInterface    $objectManager
@@ -188,6 +183,8 @@ class RealtimeManager
 
                     self::$senderInstance->sendMessages($dataRealtime);
                 }
+            } else {
+
             }
         }
     }
